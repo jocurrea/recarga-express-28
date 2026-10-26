@@ -363,3 +363,62 @@ export function savePayallManualProfit(fechaIso, montoBs) {
   return all;
 }
 
+// ==========================================
+// SEGURIDAD & PIN DE ACCESO
+// ==========================================
+const KEY_PIN = 'recargas_security_pin_v2';
+const KEY_SESSION_UNLOCKED = 'recargas_session_unlocked_v2';
+export const DEFAULT_SECURITY_PIN = '2828';
+
+export function getSecurityPin() {
+  if (typeof window === 'undefined') return DEFAULT_SECURITY_PIN;
+  try {
+    const pin = localStorage.getItem(KEY_PIN);
+    return pin && pin.trim().length >= 4 ? pin.trim() : DEFAULT_SECURITY_PIN;
+  } catch {
+    return DEFAULT_SECURITY_PIN;
+  }
+}
+
+export function saveSecurityPin(newPin) {
+  const cleanPin = String(newPin || '').trim();
+  if (cleanPin.length < 4) {
+    return { success: false, error: 'El PIN debe tener al menos 4 dígitos' };
+  }
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(KEY_PIN, cleanPin);
+  }
+  syncConfigToSupabase('security_pin', cleanPin);
+  return { success: true, pin: cleanPin };
+}
+
+export function isSessionUnlocked() {
+  if (typeof window === 'undefined') return false;
+  try {
+    // Verificamos sessionStorage primero o localStorage temporal
+    return sessionStorage.getItem(KEY_SESSION_UNLOCKED) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setSessionUnlocked(unlocked) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (unlocked) {
+      sessionStorage.setItem(KEY_SESSION_UNLOCKED, 'true');
+    } else {
+      sessionStorage.removeItem(KEY_SESSION_UNLOCKED);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function verifySecurityPin(inputPin) {
+  const clean = String(inputPin || '').trim();
+  const currentPin = getSecurityPin();
+  return clean === currentPin;
+}
+
+

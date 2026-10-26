@@ -11,7 +11,8 @@ import {
   Check,
   X,
   Sun,
-  Moon
+  Moon,
+  Lock
 } from 'lucide-react';
 import { formatBs } from '@/lib/calculator';
 
@@ -27,7 +28,8 @@ export default function Navbar({
   onOpenSettings,
   theme = 'dark',
   onToggleTheme,
-  alquilerCount = 0
+  alquilerCount = 0,
+  onLock
 }) {
   const isLight = theme === 'light';
   const [isEditingBcv, setIsEditingBcv] = useState(false);
@@ -285,6 +287,21 @@ export default function Navbar({
             title="Configuración de tarifas y comisiones"
           >
             <Settings className="w-4 h-4" />
+          </button>
+
+          {/* Botón de Bloqueo / Cerrar Turno */}
+          <button
+            id="lock-screen-btn"
+            onClick={onLock}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs ${
+              isLight
+                ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 hover:border-amber-300'
+                : 'bg-amber-950/40 border-amber-800/60 text-amber-400 hover:bg-amber-900/60 hover:text-amber-300'
+            }`}
+            title="Bloquear pantalla y proteger caja"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Bloquear</span>
           </button>
         </div>
       </div>

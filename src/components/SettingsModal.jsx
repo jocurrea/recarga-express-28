@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { OPERADORAS } from '@/lib/constants';
-import { X, Trash2, Plus } from 'lucide-react';
+import { X, Trash2, Plus, Lock, KeyRound, ShieldCheck, Check, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { formatBs } from '@/lib/calculator';
+import { getSecurityPin, saveSecurityPin, verifySecurityPin } from '@/lib/storage';
 
 export default function SettingsModal({
   isOpen,
@@ -23,6 +24,13 @@ export default function SettingsModal({
   const [newTarifaOp, setNewTarifaOp] = useState('digitel');
   const [newTarifaRecarga, setNewTarifaRecarga] = useState('');
   const [newTarifaCobro, setNewTarifaCobro] = useState('');
+
+  // Estado para gestión de PIN
+  const [currentPinInput, setCurrentPinInput] = useState('');
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [pinFeedback, setPinFeedback] = useState({ type: '', text: '' });
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,6 +58,40 @@ export default function SettingsModal({
 
   const handleDeleteTarifa = (id) => {
     setLocalTarifas(localTarifas.filter(t => t.id !== id));
+  };
+
+  const handleUpdatePin = (e) => {
+    e.preventDefault();
+    setPinFeedback({ type: '', text: '' });
+
+    if (!verifySecurityPin(currentPinInput)) {
+      setPinFeedback({ type: 'error', text: 'El PIN actual no es correcto' });
+      return;
+    }
+
+    const cleanNew = String(newPinInput || '').trim();
+    if (!/^\d{4,8}$/.test(cleanNew)) {
+      setPinFeedback({ type: 'error', text: 'El nuevo PIN debe tener entre 4 y 8 números' });
+      return;
+    }
+
+    if (cleanNew !== String(confirmPinInput || '').trim()) {
+      setPinFeedback({ type: 'error', text: 'El nuevo PIN y su confirmación no coinciden' });
+      return;
+    }
+
+    const res = saveSecurityPin(cleanNew);
+    if (res.success) {
+      setPinFeedback({ type: 'success', text: '✓ ¡PIN actualizado con éxito!' });
+      setCurrentPinInput('');
+      setNewPinInput('');
+      setConfirmPinInput('');
+      setTimeout(() => {
+        setPinFeedback({ type: '', text: '' });
+      }, 4000);
+    } else {
+      setPinFeedback({ type: 'error', text: res.error || 'Error al guardar el PIN' });
+    }
   };
 
   return (
@@ -128,6 +170,20 @@ export default function SettingsModal({
             }`}
           >
             Nube / Respaldo
+          </button>
+          <button
+            id="settings-tab-security-btn"
+            onClick={() => setActiveTab('seguridad')}
+            className={`py-3 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'seguridad'
+                ? 'border-orange-500 text-orange-600 font-bold'
+                : isLight
+                ? 'border-transparent text-slate-600 hover:text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Seguridad & PIN</span>
           </button>
         </div>
 
@@ -488,6 +544,129 @@ export default function SettingsModal({
               <p className="leading-relaxed">
                 Para guardar una copia permanente, puedes usar el botón <strong>Excel (.xlsx)</strong> tanto en el <em>Registro Diario</em> como en el <em>Reporte Semanal</em>.
               </p>
+            </div>
+          )}
+
+          {activeTab === 'seguridad' && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                isLight ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-800/50 text-amber-300'
+              }`}>
+                <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold">Privacidad y Protección de Caja</p>
+                  <p className="opacity-90">
+                    El PIN numérico impide que clientes o personas no autorizadas vean el dinero en caja, el saldo en bolívares/dólares, ganancias o la lista de fiados.
+                  </p>
+                  <p className="font-mono text-[11px] pt-1">
+                    PIN actual activo: <strong className="font-bold">{showCurrentPin ? getSecurityPin() : '••••'}</strong>
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPin(!showCurrentPin)}
+                      className="ml-2 underline text-orange-500 hover:text-orange-600 cursor-pointer"
+                    >
+                      {showCurrentPin ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdatePin} className={`p-4 rounded-xl border space-y-3.5 ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/70 border-slate-800'
+              }`}>
+                <h4 className={`text-xs font-bold uppercase tracking-wider ${
+                  isLight ? 'text-slate-800' : 'text-slate-200'
+                }`}>
+                  Cambiar PIN de Acceso
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${
+                      isLight ? 'text-slate-600' : 'text-slate-400'
+                    }`}>
+                      PIN Actual
+                    </label>
+                    <input
+                      type="password"
+                      maxLength={8}
+                      value={currentPinInput}
+                      onChange={(e) => setCurrentPinInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ej: 2828"
+                      className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
+                        isLight
+                          ? 'bg-white border-slate-300 text-slate-800 focus:border-orange-500'
+                          : 'bg-slate-800 border-slate-700 text-white focus:border-orange-500'
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${
+                      isLight ? 'text-slate-600' : 'text-slate-400'
+                    }`}>
+                      Nuevo PIN (4 a 8 dígitos)
+                    </label>
+                    <input
+                      type="password"
+                      maxLength={8}
+                      value={newPinInput}
+                      onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Nuevo PIN"
+                      className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
+                        isLight
+                          ? 'bg-white border-slate-300 text-slate-800 focus:border-orange-500'
+                          : 'bg-slate-800 border-slate-700 text-white focus:border-orange-500'
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${
+                      isLight ? 'text-slate-600' : 'text-slate-400'
+                    }`}>
+                      Confirmar Nuevo PIN
+                    </label>
+                    <input
+                      type="password"
+                      maxLength={8}
+                      value={confirmPinInput}
+                      onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Repite el nuevo PIN"
+                      className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
+                        isLight
+                          ? 'bg-white border-slate-300 text-slate-800 focus:border-orange-500'
+                          : 'bg-slate-800 border-slate-700 text-white focus:border-orange-500'
+                      }`}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {pinFeedback.text && (
+                  <div className={`p-2.5 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                    pinFeedback.type === 'error'
+                      ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                      : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                  }`}>
+                    {pinFeedback.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
+                    <span>{pinFeedback.text}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    id="submit-update-pin-btn"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Guardar Nuevo PIN</span>
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>

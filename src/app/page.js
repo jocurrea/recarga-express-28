@@ -9,6 +9,7 @@ import WeeklyReport from '@/components/WeeklyReport';
 import AlquilerPuntoView from '@/components/AlquilerPuntoView';
 import PayallManualCard from '@/components/PayallManualCard';
 import SettingsModal from '@/components/SettingsModal';
+import AuthLockScreen from '@/components/AuthLockScreen';
 import { getTasaBcv, saveManualBcvRate, getManualBcvRate } from '@/lib/bcv';
 import { calculateDailySummary, formatUsd } from '@/lib/calculator';
 import { DEFAULT_CONFIG } from '@/lib/constants';
@@ -30,7 +31,10 @@ import {
   getTarifas,
   saveTarifas,
   getTodayDateStr,
-  INITIAL_TARIFAS
+  INITIAL_TARIFAS,
+  isSessionUnlocked,
+  setSessionUnlocked,
+  saveSecurityPin
 } from '@/lib/storage';
 import {
   isSupabaseConfigured,
@@ -52,6 +56,7 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
   const [isMounted, setIsMounted] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   // Inicialización y carga de datos
   const loadInitialData = useCallback(() => {
@@ -105,6 +110,9 @@ export default function Home() {
             localStorage.setItem('recargas_tarifas_custom_v3', JSON.stringify(res.tarifas));
           }
         }
+        if (res?.securityPin) {
+          saveSecurityPin(res.securityPin);
+        }
       });
     }
   }, []);
@@ -144,6 +152,9 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
+    if (isSessionUnlocked()) {
+      setIsUnlocked(true);
+    }
     setSelectedDate(getTodayDateStr());
     loadInitialData();
     // Consultar tasa oficial de entrada
@@ -232,7 +243,21 @@ export default function Home() {
     setTarifas(newTarifas);
   };
 
+  const handleLockScreen = () => {
+    setSessionUnlocked(false);
+    setIsUnlocked(false);
+  };
+
   if (!isMounted) return null;
+
+  if (!isUnlocked) {
+    return (
+      <AuthLockScreen
+        onUnlock={() => setIsUnlocked(true)}
+        theme={theme}
+      />
+    );
+  }
 
   const isLight = theme === 'light';
 
@@ -254,6 +279,7 @@ export default function Home() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         alquilerCount={dayAlquiler.length}
+        onLock={handleLockScreen}
       />
 
       {/* Contenido Principal */}

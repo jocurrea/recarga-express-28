@@ -218,9 +218,11 @@ export async function fetchConfigFromSupabase() {
     if (error || !data) return null;
     const configRow = data.find(r => r.clave === 'config');
     const tarifasRow = data.find(r => r.clave === 'tarifas');
+    const pinRow = data.find(r => r.clave === 'security_pin');
     return {
       config: configRow ? configRow.valor : null,
-      tarifas: tarifasRow ? tarifasRow.valor : null
+      tarifas: tarifasRow ? tarifasRow.valor : null,
+      securityPin: pinRow ? pinRow.valor : null
     };
   } catch {
     return null;
