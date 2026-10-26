@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --brand-navy-dark: #060b18;
+    --brand-navy-card: #0d152c;
+    --brand-navy-border: #19274e;
+    --brand-orange: #f37021;
+    --brand-orange-light: #ff8533;
+    --brand-orange-dark: #cc5500;
+  }
+}
+
+body {
+  background-color: #060b18;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+}
+
+/* Panel styling tailored to Recarga Express 28 */
+.glass-panel {
+  background: rgba(13, 21, 44, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(38, 57, 107, 0.6);
+}
+
+.glass-card {
+  background: rgba(16, 26, 56, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(45, 68, 126, 0.5);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #060b18;
+}
+::-webkit-scrollbar-thumb {
+  background: #19274e;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #f37021;
+}
+
+/* Reglas de Impresión y Generación de PDF Nativo */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-report-area,
+  #printable-report-area * {
+    visibility: visible;
+  }
+
+  #printable-report-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 16px;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

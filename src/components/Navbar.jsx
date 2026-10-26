@@ -1,0 +1,367 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  Calendar,
+  Settings,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Edit2,
+  Check,
+  X,
+  Sun,
+  Moon
+} from 'lucide-react';
+import { formatBs } from '@/lib/calculator';
+
+export default function Navbar({
+  activeTab,
+  setActiveTab,
+  selectedDate,
+  setSelectedDate,
+  tasaBcv,
+  loadingBcv,
+  onRefreshBcv,
+  onSaveManualBcv,
+  onOpenSettings,
+  theme = 'dark',
+  onToggleTheme,
+  alquilerCount = 0
+}) {
+  const isLight = theme === 'light';
+  const [isEditingBcv, setIsEditingBcv] = useState(false);
+  const [manualBcvInput, setManualBcvInput] = useState('');
+  const [bcvFeedback, setBcvFeedback] = useState('');
+
+  const handleRefreshClick = async () => {
+    if (loadingBcv) return;
+    try {
+      const res = await onRefreshBcv?.();
+      if (res?.tasa) {
+        setBcvFeedback(`✓ BCV: ${formatBs(res.tasa)}`);
+      } else {
+        setBcvFeedback('✓ Actualizado');
+      }
+      setTimeout(() => setBcvFeedback(''), 3500);
+    } catch {
+      setBcvFeedback('⚠️ Error');
+      setTimeout(() => setBcvFeedback(''), 3500);
+    }
+  };
+
+  const isToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return selectedDate === today;
+  };
+
+  const handlePrevDay = () => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleSetToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setSelectedDate(today);
+  };
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return date.toLocaleDateString('es-VE', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+  };
+
+  const handleStartEditBcv = () => {
+    setManualBcvInput(String(tasaBcv || 887.30));
+    setIsEditingBcv(true);
+  };
+
+  const handleConfirmBcv = (e) => {
+    if (e) e.preventDefault();
+    const parsed = parseFloat(manualBcvInput.replace(',', '.'));
+    if (parsed > 0 && onSaveManualBcv) {
+      onSaveManualBcv(parsed);
+      setBcvFeedback(`✓ Guardado: ${formatBs(parsed)}`);
+      setTimeout(() => setBcvFeedback(''), 3500);
+    }
+    setIsEditingBcv(false);
+  };
+
+  return (
+    <header className={`sticky top-0 z-40 w-full px-3 py-2.5 sm:px-6 transition-colors border-b ${
+      isLight
+        ? 'bg-white border-slate-200 text-slate-800'
+        : 'bg-[#0f172a] border-slate-800 text-slate-100'
+    }`}>
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        {/* Brand: Insignia limpia oficial */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className={`h-14 sm:h-16 w-auto rounded-xl px-3 py-1.5 flex items-center justify-center border transition ${
+              isLight
+                ? 'bg-white border-slate-200 shadow-sm'
+                : 'bg-white border-slate-700 shadow-sm'
+            }`}>
+              <img
+                src="/logo.jpg"
+                alt="Recarga Express 28"
+                className="h-11 sm:h-13 w-auto object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Tasa BCV con Edición Rápida */}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+            isLight
+              ? 'bg-slate-50 border-slate-200'
+              : 'bg-slate-900 border-slate-800'
+          }`}>
+            {isEditingBcv ? (
+              <form onSubmit={handleConfirmBcv} className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-orange-600">BCV:</span>
+                <input
+                  id="manual-bcv-input"
+                  type="number"
+                  step="0.01"
+                  value={manualBcvInput}
+                  onChange={(e) => setManualBcvInput(e.target.value)}
+                  className={`w-20 text-xs font-bold px-2 py-0.5 rounded border border-orange-500 focus:outline-none ${
+                    isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-white'
+                  }`}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  title="Guardar tasa BCV"
+                  className="p-1 rounded bg-orange-600 hover:bg-orange-700 text-white transition cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingBcv(false)}
+                  title="Cancelar"
+                  className="p-1 rounded text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div
+                  onClick={handleStartEditBcv}
+                  className="flex items-center gap-1.5 cursor-pointer hover:opacity-85 transition group"
+                  title="Clic para editar tasa BCV manualmente"
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    BCV:
+                  </span>
+                  <span className={`text-xs sm:text-sm font-bold font-mono ${
+                    isLight ? 'text-slate-900' : 'text-amber-300'
+                  }`}>
+                    {formatBs(tasaBcv)}
+                  </span>
+                  <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-orange-500 transition" />
+                </div>
+                <button
+                  id="refresh-bcv-btn"
+                  type="button"
+                  onClick={handleRefreshClick}
+                  disabled={loadingBcv}
+                  title="Consultar y actualizar tasa oficial en vivo desde el banco"
+                  className={`p-1.5 rounded-lg border transition cursor-pointer flex items-center justify-center ${
+                    isLight
+                      ? 'border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs'
+                      : 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white shadow-2xs'
+                  } ${loadingBcv ? 'opacity-70 cursor-wait' : ''}`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingBcv ? 'animate-spin text-orange-500' : ''}`} />
+                </button>
+                {bcvFeedback && (
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30 animate-in fade-in duration-150">
+                    {bcvFeedback}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Date Selector, Theme Switcher & Settings */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5">
+          {/* Day Navigator */}
+          <div className={`flex items-center rounded-xl p-0.5 text-xs border ${
+            isLight
+              ? 'bg-slate-50 border-slate-200'
+              : 'bg-slate-900 border-slate-800'
+          }`}>
+            <button
+              id="prev-day-btn"
+              onClick={handlePrevDay}
+              className={`p-1.5 rounded-lg transition ${
+                isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title="Día anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              id="date-picker-btn"
+              onClick={handleSetToday}
+              className={`px-2.5 py-1 rounded-lg font-bold transition capitalize text-xs ${
+                isToday()
+                  ? isLight
+                    ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                    : 'bg-orange-950/40 text-orange-300 border border-orange-800'
+                  : isLight ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              {isToday() ? 'Hoy: ' : ''}
+              {formatDateDisplay(selectedDate)}
+            </button>
+
+            <button
+              id="next-day-btn"
+              onClick={handleNextDay}
+              disabled={isToday()}
+              className={`p-1.5 rounded-lg transition ${
+                isToday()
+                  ? 'text-slate-400 cursor-not-allowed opacity-40'
+                  : isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-800 text-slate-300 hover:text-white'
+              }`}
+              title="Día siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Botón selector de Tema: Blanco (Claro) vs Oscuro */}
+          <button
+            id="theme-toggle-btn"
+            onClick={onToggleTheme}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+              isLight
+                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+            }`}
+            title={isLight ? 'Cambiar a modo oscuro' : 'Cambiar a modo blanco'}
+          >
+            {isLight ? (
+              <>
+                <Moon className="w-3.5 h-3.5 text-slate-600" />
+                <span>Modo Blanco</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span>Modo Oscuro</span>
+              </>
+            )}
+          </button>
+
+          {/* Settings button */}
+          <button
+            id="open-settings-btn"
+            onClick={onOpenSettings}
+            className={`p-2 rounded-xl border transition cursor-pointer ${
+              isLight
+                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Configuración de tarifas y comisiones"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tabs Navigation */}
+      <div className={`max-w-7xl mx-auto mt-2.5 flex items-center justify-between border-t pt-2 gap-1 overflow-x-auto ${
+        isLight ? 'border-slate-100' : 'border-slate-800'
+      }`}>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            id="tab-cashier-btn"
+            onClick={() => setActiveTab('cajero')}
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+              activeTab === 'cajero'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            Cajero Rápido
+          </button>
+
+          <button
+            id="tab-daily-btn"
+            onClick={() => setActiveTab('diario')}
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+              activeTab === 'diario'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            Registro Diario
+          </button>
+
+          <button
+            id="tab-alquiler-btn"
+            onClick={() => setActiveTab('alquiler')}
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'alquiler'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <span>Alquiler Punto (10%)</span>
+            {alquilerCount > 0 && (
+              <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-full ${
+                activeTab === 'alquiler'
+                  ? 'bg-white text-orange-600'
+                  : isLight
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'bg-orange-950 text-orange-300'
+              }`}>
+                {alquilerCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            id="tab-weekly-btn"
+            onClick={() => setActiveTab('semanal')}
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+              activeTab === 'semanal'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            Semanal / Excel
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
