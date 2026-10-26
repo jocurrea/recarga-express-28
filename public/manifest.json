@@ -3,6 +3,7 @@
   "short_name": "RE28",
   "description": "Sistema de control de recargas, caja, deducciones y ganancias en Venezuela",
   "start_url": "/",
+  "scope": "/",
   "id": "/",
   "display": "standalone",
   "background_color": "#060b18",

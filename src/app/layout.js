@@ -41,6 +41,8 @@ export const viewport = {
   userScalable: false,
 };
 
+import PwaRegister from "@/components/PwaRegister";
+
 export default function RootLayout({ children }) {
   return (
     <html
@@ -58,7 +60,10 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="RE28" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="min-h-full flex flex-col bg-[#060b18] text-slate-100">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#060b18] text-slate-100">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }
