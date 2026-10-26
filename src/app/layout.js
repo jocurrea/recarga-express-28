@@ -17,9 +17,20 @@ export const metadata = {
     "Sistema de control diario de recargas para Payall y PagoDirecto. Digitel, Movistar, Movilnet, SimpleTV, CANTV, Inter a tasa BCV.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
+    icon: [
+      { url: "/favicon.png", sizes: "64x64", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ],
+    shortcut: "/icon-192.png"
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Recarga 28"
+  }
 };
 
 export const viewport = {
@@ -38,7 +49,12 @@ export default function RootLayout({ children }) {
     >
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Recarga 28" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="min-h-full flex flex-col bg-[#060b18] text-slate-100">{children}</body>
