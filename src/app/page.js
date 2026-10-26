@@ -11,7 +11,7 @@ import PayallManualCard from '@/components/PayallManualCard';
 import SettingsModal from '@/components/SettingsModal';
 import AuthLockScreen from '@/components/AuthLockScreen';
 import { getTasaBcv, saveManualBcvRate, getManualBcvRate } from '@/lib/bcv';
-import { calculateDailySummary, formatUsd } from '@/lib/calculator';
+import { calculateDailySummary, formatBs, formatUsd } from '@/lib/calculator';
 import { DEFAULT_CONFIG } from '@/lib/constants';
 import {
   getAllTransactions,

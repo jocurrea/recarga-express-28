@@ -842,7 +842,7 @@ export default function DailyTable({
                 <tr>
                   <td colSpan={isVendedor ? 11 : 12} className="py-10 text-center font-sans">
                     <p className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>No hay recargas registradas para este filtro o fecha.</p>
-                    <p className="text-xs text-slate-500 mt-1">Usa la pestaña "Cajero Rápido" para registrar nuevas recargas.</p>
+                    <p className="text-xs text-slate-500 mt-1">Usa la pestaña &quot;Cajero Rápido&quot; para registrar nuevas recargas.</p>
                   </td>
                 </tr>
               ) : (
