@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatBs, formatUsd } from '@/lib/calculator';
 import { getPayallManualProfits, savePayallManualProfit, getTodayDateStr } from '@/lib/storage';
+import { isSupabaseConfigured, fetchPayallManualFromSupabase } from '@/lib/supabase';
 import { ChevronLeft, ChevronRight, Calendar, DollarSign, Sparkles } from 'lucide-react';
 
 export default function PayallManualCard({ tasaBcv = 0, theme = 'dark' }) {
@@ -14,6 +15,16 @@ export default function PayallManualCard({ tasaBcv = 0, theme = 'dark' }) {
   useEffect(() => {
     setMounted(true);
     setManualProfits(getPayallManualProfits());
+    if (isSupabaseConfigured) {
+      fetchPayallManualFromSupabase().then((remote) => {
+        if (remote && Object.keys(remote).length > 0) {
+          setManualProfits((prev) => ({ ...prev, ...remote }));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('recargas_payall_manual_profits_v1', JSON.stringify(remote));
+          }
+        }
+      });
+    }
   }, []);
 
   const todayStr = useMemo(() => getTodayDateStr(), []);

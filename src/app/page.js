@@ -32,6 +32,13 @@ import {
   getTodayDateStr,
   INITIAL_TARIFAS
 } from '@/lib/storage';
+import {
+  isSupabaseConfigured,
+  fetchTransactionsFromSupabase,
+  syncTransactionToSupabase,
+  fetchAlquilerFromSupabase,
+  fetchConfigFromSupabase
+} from '@/lib/supabase';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('cajero'); // 'cajero' | 'diario' | 'semanal'
@@ -48,6 +55,7 @@ export default function Home() {
 
   // Inicialización y carga de datos
   const loadInitialData = useCallback(() => {
+    // 1. Carga inmediata local (0 latencia)
     const txs = getAllTransactions();
     setAllTransactions(txs);
     setAllAlquiler(getAllAlquilerPunto());
@@ -59,6 +67,45 @@ export default function Home() {
       if (savedTheme === 'light' || savedTheme === 'dark') {
         setTheme(savedTheme);
       }
+    }
+
+    // 2. Sincronización en segundo plano con Supabase Cloud
+    if (isSupabaseConfigured) {
+      fetchTransactionsFromSupabase().then((remoteTxs) => {
+        if (remoteTxs && remoteTxs.length > 0) {
+          setAllTransactions(remoteTxs);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('recargas_transacciones_v1', JSON.stringify(remoteTxs));
+          }
+        } else if (txs.length > 0) {
+          // Si Supabase está vacío y hay datos locales, respaldar en la nube
+          txs.forEach((t) => syncTransactionToSupabase(t));
+        }
+      });
+
+      fetchAlquilerFromSupabase().then((remoteAlq) => {
+        if (remoteAlq && remoteAlq.length > 0) {
+          setAllAlquiler(remoteAlq);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('recargas_alquiler_punto_v1', JSON.stringify(remoteAlq));
+          }
+        }
+      });
+
+      fetchConfigFromSupabase().then((res) => {
+        if (res?.config) {
+          setConfig(res.config);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('recargas_config_v1', JSON.stringify(res.config));
+          }
+        }
+        if (res?.tarifas) {
+          setTarifas(res.tarifas);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('recargas_tarifas_custom_v3', JSON.stringify(res.tarifas));
+          }
+        }
+      });
     }
   }, []);
 

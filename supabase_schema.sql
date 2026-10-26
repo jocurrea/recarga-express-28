@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS transacciones (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Índices para búsquedas rápidas por fecha
 CREATE INDEX IF NOT EXISTS idx_transacciones_fecha ON transacciones(fecha);
 CREATE INDEX IF NOT EXISTS idx_transacciones_estado ON transacciones(estado_pago);
 
@@ -59,8 +58,19 @@ CREATE TABLE IF NOT EXISTS configuracion (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Desactivar Row Level Security (RLS) para permitir lectura y escritura directa con anon key
-ALTER TABLE transacciones DISABLE ROW LEVEL SECURITY;
-ALTER TABLE alquiler_punto DISABLE ROW LEVEL SECURITY;
-ALTER TABLE payall_manual_ganancias DISABLE ROW LEVEL SECURITY;
-ALTER TABLE configuracion DISABLE ROW LEVEL SECURITY;
+-- Políticas de acceso completas (Lectura y Escritura) para la API pública
+ALTER TABLE transacciones ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir todo transacciones" ON transacciones;
+CREATE POLICY "Permitir todo transacciones" ON transacciones FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE alquiler_punto ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir todo alquiler_punto" ON alquiler_punto;
+CREATE POLICY "Permitir todo alquiler_punto" ON alquiler_punto FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE payall_manual_ganancias ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir todo payall_manual_ganancias" ON payall_manual_ganancias;
+CREATE POLICY "Permitir todo payall_manual_ganancias" ON payall_manual_ganancias FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir todo configuracion" ON configuracion;
+CREATE POLICY "Permitir todo configuracion" ON configuracion FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);

@@ -1,4 +1,12 @@
 import { DEFAULT_CONFIG } from './constants';
+import {
+  syncTransactionToSupabase,
+  deleteTransactionFromSupabase,
+  syncAlquilerToSupabase,
+  deleteAlquilerFromSupabase,
+  syncPayallManualToSupabase,
+  syncConfigToSupabase
+} from './supabase';
 
 const KEY_TRANSACTIONS = 'recargas_transacciones_v1';
 const KEY_CONFIG = 'recargas_config_v1';
@@ -104,6 +112,8 @@ export function addTransaction(data) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_TRANSACTIONS, JSON.stringify(updated));
   }
+  // Sincronizar en segundo plano con Supabase
+  syncTransactionToSupabase(newTx);
   return newTx;
 }
 
@@ -113,25 +123,33 @@ export function deleteTransaction(id) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_TRANSACTIONS, JSON.stringify(updated));
   }
+  // Eliminar en segundo plano en Supabase
+  deleteTransactionFromSupabase(id);
   return updated;
 }
 
 export function updateTransaction(id, updatedFields) {
   const all = getAllTransactions();
+  let updatedTx = null;
   const updated = all.map(t => {
     if (t.id === id) {
-      return { ...t, ...updatedFields };
+      updatedTx = { ...t, ...updatedFields };
+      return updatedTx;
     }
     return t;
   });
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_TRANSACTIONS, JSON.stringify(updated));
   }
+  if (updatedTx) {
+    syncTransactionToSupabase(updatedTx);
+  }
   return updated;
 }
 
 export function toggleEstadoPago(id, nuevoMetodo = null) {
   const all = getAllTransactions();
+  let updatedTx = null;
   const updated = all.map(t => {
     if (t.id === id) {
       const nuevoEstado = (t.estadoPago || 'pagado') === 'pendiente' ? 'pagado' : 'pendiente';
@@ -158,6 +176,7 @@ export function toggleEstadoPago(id, nuevoMetodo = null) {
         }
       }
 
+      updatedTx = actualizacion;
       return actualizacion;
     }
     return t;
@@ -165,6 +184,9 @@ export function toggleEstadoPago(id, nuevoMetodo = null) {
 
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_TRANSACTIONS, JSON.stringify(updated));
+  }
+  if (updatedTx) {
+    syncTransactionToSupabase(updatedTx);
   }
   return updated;
 }
@@ -200,6 +222,7 @@ export function saveConfig(newConfig) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_CONFIG, JSON.stringify(newConfig));
   }
+  syncConfigToSupabase('config', newConfig);
   return newConfig;
 }
 
@@ -217,6 +240,7 @@ export function saveTarifas(tarifas) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_TARIFAS, JSON.stringify(tarifas));
   }
+  syncConfigToSupabase('tarifas', tarifas);
   return tarifas;
 }
 
@@ -267,6 +291,7 @@ export function addAlquilerPunto(data) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
+  syncAlquilerToSupabase(newItem);
   return newItem;
 }
 
@@ -276,19 +301,25 @@ export function deleteAlquilerPunto(id) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
+  deleteAlquilerFromSupabase(id);
   return updated;
 }
 
 export function toggleAlquilerTransferido(id) {
   const all = getAllAlquilerPunto();
+  let target = null;
   const updated = all.map(item => {
     if (item.id === id) {
-      return { ...item, transferido: !item.transferido };
+      target = { ...item, transferido: !item.transferido };
+      return target;
     }
     return item;
   });
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
+  }
+  if (target) {
+    syncAlquilerToSupabase(target);
   }
   return updated;
 }
@@ -328,6 +359,7 @@ export function savePayallManualProfit(fechaIso, montoBs) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_PAYALL_MANUAL, JSON.stringify(all));
   }
+  syncPayallManualToSupabase(fechaIso, montoBs);
   return all;
 }
 
