@@ -12,7 +12,9 @@ import {
   X,
   Sun,
   Moon,
-  Lock
+  Lock,
+  User,
+  Shield
 } from 'lucide-react';
 import { formatBs } from '@/lib/calculator';
 
@@ -29,9 +31,12 @@ export default function Navbar({
   theme = 'dark',
   onToggleTheme,
   alquilerCount = 0,
-  onLock
+  onLock,
+  currentUser = null
 }) {
   const isLight = theme === 'light';
+  const isAdmin = currentUser ? currentUser.rol === 'admin' : true;
+  const isVendedor = currentUser?.rol === 'vendedor';
   const [isEditingBcv, setIsEditingBcv] = useState(false);
   const [manualBcvInput, setManualBcvInput] = useState('');
   const [bcvFeedback, setBcvFeedback] = useState('');
@@ -275,19 +280,40 @@ export default function Navbar({
             )}
           </button>
 
-          {/* Settings button */}
-          <button
-            id="open-settings-btn"
-            onClick={onOpenSettings}
-            className={`p-2 rounded-xl border transition cursor-pointer ${
-              isLight
-                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="Configuración de tarifas y comisiones"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          {/* Badge del Usuario / Rol Activo */}
+          {currentUser && (
+            <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold ${
+              isVendedor
+                ? isLight
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300'
+                : isLight
+                ? 'bg-orange-50 border-orange-200 text-orange-800'
+                : 'bg-orange-950/40 border-orange-800/60 text-orange-300'
+            }`}>
+              {isVendedor ? <User className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+              <span>{currentUser.nombre}</span>
+              <span className="text-[10px] opacity-75 font-normal">
+                ({isVendedor ? 'Cajero' : 'Admin'})
+              </span>
+            </div>
+          )}
+
+          {/* Settings button (Solo Administradores) */}
+          {isAdmin && (
+            <button
+              id="open-settings-btn"
+              onClick={onOpenSettings}
+              className={`p-2 rounded-xl border transition cursor-pointer ${
+                isLight
+                  ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+              title="Configuración de tarifas, comisiones y claves"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Botón de Bloqueo / Cerrar Turno */}
           <button
@@ -339,44 +365,50 @@ export default function Navbar({
             Registro Diario
           </button>
 
-          <button
-            id="tab-alquiler-btn"
-            onClick={() => setActiveTab('alquiler')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'alquiler'
-                ? 'bg-orange-600 text-white shadow-xs'
-                : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <span>Alquiler Punto (10%)</span>
-            {alquilerCount > 0 && (
-              <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-full ${
+          {/* Pestaña Alquiler Punto (Solo Dueño y Socio) */}
+          {isAdmin && (
+            <button
+              id="tab-alquiler-btn"
+              onClick={() => setActiveTab('alquiler')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'alquiler'
-                  ? 'bg-white text-orange-600'
+                  ? 'bg-orange-600 text-white shadow-xs'
                   : isLight
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'bg-orange-950 text-orange-300'
-              }`}>
-                {alquilerCount}
-              </span>
-            )}
-          </button>
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>Alquiler Punto (10%)</span>
+              {alquilerCount > 0 && (
+                <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-full ${
+                  activeTab === 'alquiler'
+                    ? 'bg-white text-orange-600'
+                    : isLight
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-orange-950 text-orange-300'
+                }`}>
+                  {alquilerCount}
+                </span>
+              )}
+            </button>
+          )}
 
-          <button
-            id="tab-weekly-btn"
-            onClick={() => setActiveTab('semanal')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
-              activeTab === 'semanal'
-                ? 'bg-orange-600 text-white shadow-xs'
-                : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            Semanal / Excel
-          </button>
+          {/* Pestaña Semanal / Excel (Solo Dueño y Socio) */}
+          {isAdmin && (
+            <button
+              id="tab-weekly-btn"
+              onClick={() => setActiveTab('semanal')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+                activeTab === 'semanal'
+                  ? 'bg-orange-600 text-white shadow-xs'
+                  : isLight
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              Semanal / Excel
+            </button>
+          )}
         </div>
       </div>
     </header>

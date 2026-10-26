@@ -10,8 +10,9 @@ import {
 } from 'lucide-react';
 import { formatBs, formatUsd } from '@/lib/calculator';
 
-export default function DailySummaryCards({ summary, config, onTogglePosRent, theme = 'dark' }) {
+export default function DailySummaryCards({ summary, config, onTogglePosRent, theme = 'dark', currentUser = null }) {
   const isLight = theme === 'light';
+  const isVendedor = currentUser?.rol === 'vendedor';
   const {
     totalRecargas,
     totalMontoRecarga,
@@ -47,6 +48,127 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
 
   const comisionPuntoPct = Number(config?.comisionPuntoPorcentaje ?? 0.75);
   const biopagoPct = Number(config?.biopagoPorcentaje ?? 2.0);
+
+  // VISTA ESPECIAL VENDEDOR: SOLO DINERO RECAUDADO Y MEDIOS DE PAGO (SIN GANANCIAS NI DEDUCCIONES)
+  if (isVendedor) {
+    return (
+      <div className="space-y-4">
+        {/* Tarjeta de Arqueo General para Vendedor */}
+        <div className={`rounded-2xl p-5 sm:p-6 border transition-colors shadow-sm ${
+          isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${
+                  isLight ? 'text-slate-600' : 'text-slate-400'
+                }`}>
+                  Total Cobrado en Caja Hoy
+                </span>
+              </div>
+              <div className={`text-3xl sm:text-4xl md:text-5xl font-black tracking-tight font-mono ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}>
+                {formatBs(totalCobrado)}
+              </div>
+              <p className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                {totalRecargas === 0
+                  ? 'Sin operaciones registradas en el turno de hoy'
+                  : `Cuadre correspondiente a ${totalRecargas} recargas realizadas`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className={`px-4 py-3 rounded-xl border text-center min-w-[130px] ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/90 border-slate-800'
+              }`}>
+                <span className={`text-[11px] font-bold uppercase tracking-wide block ${
+                  isLight ? 'text-slate-600' : 'text-slate-400'
+                }`}>
+                  Recargas
+                </span>
+                <div className={`text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {totalRecargas}
+                </div>
+                <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Operaciones
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cajas de Arqueo por Medio de Pago (Efectivo, Punto POS, BioPago) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Efectivo en Mano */}
+          <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                isLight ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                Efectivo en Gaveta
+              </span>
+              <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className={`text-2xl font-black font-mono ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+              {formatBs(totalEfectivo)}
+            </div>
+            <div className="flex items-center justify-between mt-1 text-[11px]">
+              <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Dinero físico a entregar</span>
+              {tasaBcv > 0 && totalEfectivo > 0 && (
+                <span className={`font-mono font-bold ${isLight ? 'text-slate-600' : 'text-amber-400'}`}>
+                  ≈ {formatUsd(totalEfectivo / tasaBcv)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Punto de Venta POS */}
+          <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                isLight ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                Punto de Venta (POS)
+              </span>
+              <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className={`text-2xl font-black font-mono ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>
+              {formatBs(totalPunto)}
+            </div>
+            <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Total pasado por tarjeta de débito
+            </p>
+          </div>
+
+          {/* BioPago */}
+          <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                isLight ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                BioPago
+              </span>
+              <Fingerprint className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className={`text-2xl font-black font-mono ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
+              {formatBs(totalBiopago)}
+            </div>
+            <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Total cobrado por huella digital
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

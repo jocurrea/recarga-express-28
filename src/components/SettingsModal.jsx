@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { OPERADORAS } from '@/lib/constants';
-import { X, Trash2, Plus, Lock, KeyRound, ShieldCheck, Check, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { X, Trash2, Plus, Lock, KeyRound, ShieldCheck, Check, AlertCircle, Eye, EyeOff, User, Shield } from 'lucide-react';
 import { formatBs } from '@/lib/calculator';
-import { getSecurityPin, saveSecurityPin, verifySecurityPin } from '@/lib/storage';
+import { getUsersConfig, updateUserPin } from '@/lib/storage';
 
 export default function SettingsModal({
   isOpen,
@@ -25,12 +25,13 @@ export default function SettingsModal({
   const [newTarifaRecarga, setNewTarifaRecarga] = useState('');
   const [newTarifaCobro, setNewTarifaCobro] = useState('');
 
-  // Estado para gestión de PIN
-  const [currentPinInput, setCurrentPinInput] = useState('');
-  const [newPinInput, setNewPinInput] = useState('');
-  const [confirmPinInput, setConfirmPinInput] = useState('');
+  // Estado para gestión de roles y PINs de los 3 usuarios
+  const [usersList, setUsersList] = useState(() => getUsersConfig());
+  const [targetUserId, setTargetUserId] = useState('vendedor');
+  const [newPinVal, setNewPinVal] = useState('');
+  const [confirmPinVal, setConfirmPinVal] = useState('');
   const [pinFeedback, setPinFeedback] = useState({ type: '', text: '' });
-  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [revealedPins, setRevealedPins] = useState({});
 
   if (!isOpen) return null;
 
@@ -64,34 +65,34 @@ export default function SettingsModal({
     e.preventDefault();
     setPinFeedback({ type: '', text: '' });
 
-    if (!verifySecurityPin(currentPinInput)) {
-      setPinFeedback({ type: 'error', text: 'El PIN actual no es correcto' });
-      return;
-    }
-
-    const cleanNew = String(newPinInput || '').trim();
+    const cleanNew = String(newPinVal || '').trim();
     if (!/^\d{4,8}$/.test(cleanNew)) {
-      setPinFeedback({ type: 'error', text: 'El nuevo PIN debe tener entre 4 y 8 números' });
+      setPinFeedback({ type: 'error', text: 'El nuevo PIN debe tener entre 4 y 8 dígitos numéricos' });
       return;
     }
 
-    if (cleanNew !== String(confirmPinInput || '').trim()) {
+    if (cleanNew !== String(confirmPinVal || '').trim()) {
       setPinFeedback({ type: 'error', text: 'El nuevo PIN y su confirmación no coinciden' });
       return;
     }
 
-    const res = saveSecurityPin(cleanNew);
+    const res = updateUserPin(targetUserId, cleanNew);
     if (res.success) {
-      setPinFeedback({ type: 'success', text: '✓ ¡PIN actualizado con éxito!' });
-      setCurrentPinInput('');
-      setNewPinInput('');
-      setConfirmPinInput('');
+      setUsersList(res.users);
+      const targetName = usersList.find(u => u.id === targetUserId)?.nombre || targetUserId;
+      setPinFeedback({ type: 'success', text: `✓ ¡PIN de ${targetName} actualizado a ${cleanNew}!` });
+      setNewPinVal('');
+      setConfirmPinVal('');
       setTimeout(() => {
         setPinFeedback({ type: '', text: '' });
       }, 4000);
     } else {
       setPinFeedback({ type: 'error', text: res.error || 'Error al guardar el PIN' });
     }
+  };
+
+  const togglePinReveal = (userId) => {
+    setRevealedPins(prev => ({ ...prev, [userId]: !prev[userId] }));
   };
 
   return (
@@ -554,66 +555,106 @@ export default function SettingsModal({
               }`}>
                 <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <p className="font-bold">Privacidad y Protección de Caja</p>
+                  <p className="font-bold">Control de Privacidad y Roles de Seguridad</p>
                   <p className="opacity-90">
-                    El PIN numérico impide que clientes o personas no autorizadas vean el dinero en caja, el saldo en bolívares/dólares, ganancias o la lista de fiados.
-                  </p>
-                  <p className="font-mono text-[11px] pt-1">
-                    PIN actual activo: <strong className="font-bold">{showCurrentPin ? getSecurityPin() : '••••'}</strong>
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPin(!showCurrentPin)}
-                      className="ml-2 underline text-orange-500 hover:text-orange-600 cursor-pointer"
-                    >
-                      {showCurrentPin ? 'Ocultar' : 'Ver'}
-                    </button>
+                    La aplicación cuenta con 3 usuarios protegidos por PIN. Los Administradores (Dueño y Socio) ven todas las ganancias, deducciones, alquiler de punto y reportes semanales. El Vendedor solo tiene acceso al registro rápido, cuadre de gaveta y bitácora de reclamos.
                   </p>
                 </div>
               </div>
 
+              {/* Lista de Usuarios Activos */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {usersList.map((user) => {
+                  const isAdmin = user.rol === 'admin';
+                  const isSelected = targetUserId === user.id;
+                  const isRevealed = revealedPins[user.id];
+
+                  return (
+                    <div
+                      key={user.id}
+                      onClick={() => setTargetUserId(user.id)}
+                      className={`p-3.5 rounded-xl border transition cursor-pointer relative ${
+                        isSelected
+                          ? 'border-orange-500 ring-2 ring-orange-500/20'
+                          : isLight
+                          ? 'border-slate-200 bg-white hover:border-slate-300'
+                          : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-xs flex items-center gap-1.5">
+                          {isAdmin ? <Shield className="w-3.5 h-3.5 text-orange-500" /> : <User className="w-3.5 h-3.5 text-emerald-500" />}
+                          <span className={isLight ? 'text-slate-900' : 'text-white'}>{user.nombre}</span>
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.2 rounded border ${
+                          isAdmin
+                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                        }`}>
+                          {isAdmin ? 'Acceso Total' : 'Solo Caja'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800/80 font-mono">
+                        <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>PIN:</span>
+                        <div className="flex items-center gap-1.5">
+                          <strong className="font-bold tracking-wider">
+                            {isRevealed ? user.pin : '••••'}
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePinReveal(user.id);
+                            }}
+                            className="text-slate-400 hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                            title={isRevealed ? 'Ocultar PIN' : 'Ver PIN'}
+                          >
+                            {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-orange-600 text-white rounded-full p-0.5">
+                          <Check className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Formulario para cambiar PIN del usuario seleccionado */}
               <form onSubmit={handleUpdatePin} className={`p-4 rounded-xl border space-y-3.5 ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/70 border-slate-800'
               }`}>
-                <h4 className={`text-xs font-bold uppercase tracking-wider ${
-                  isLight ? 'text-slate-800' : 'text-slate-200'
-                }`}>
-                  Cambiar PIN de Acceso
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className={`text-xs font-bold uppercase tracking-wider ${
+                    isLight ? 'text-slate-800' : 'text-slate-200'
+                  }`}>
+                    Cambiar PIN para: <span className="text-orange-500 underline">{usersList.find(u => u.id === targetUserId)?.nombre}</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    {usersList.find(u => u.id === targetUserId)?.rol === 'admin'
+                      ? 'Tendrá acceso total'
+                      : 'Solo verá cobros, efectivo y gaveta'}
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={`block text-[11px] font-semibold mb-1 ${
                       isLight ? 'text-slate-600' : 'text-slate-400'
                     }`}>
-                      PIN Actual
+                      Nuevo PIN (4 a 8 dígitos numéricos)
                     </label>
                     <input
                       type="password"
                       maxLength={8}
-                      value={currentPinInput}
-                      onChange={(e) => setCurrentPinInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Ej: 2828"
-                      className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
-                        isLight
-                          ? 'bg-white border-slate-300 text-slate-800 focus:border-orange-500'
-                          : 'bg-slate-800 border-slate-700 text-white focus:border-orange-500'
-                      }`}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className={`block text-[11px] font-semibold mb-1 ${
-                      isLight ? 'text-slate-600' : 'text-slate-400'
-                    }`}>
-                      Nuevo PIN (4 a 8 dígitos)
-                    </label>
-                    <input
-                      type="password"
-                      maxLength={8}
-                      value={newPinInput}
-                      onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Nuevo PIN"
+                      value={newPinVal}
+                      onChange={(e) => setNewPinVal(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ej: 1234"
                       className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
                         isLight
                           ? 'bg-white border-slate-300 text-slate-800 focus:border-orange-500'
@@ -632,8 +673,8 @@ export default function SettingsModal({
                     <input
                       type="password"
                       maxLength={8}
-                      value={confirmPinInput}
-                      onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, ''))}
+                      value={confirmPinVal}
+                      onChange={(e) => setConfirmPinVal(e.target.value.replace(/\D/g, ''))}
                       placeholder="Repite el nuevo PIN"
                       className={`w-full px-3 py-2 rounded-lg text-sm font-mono border focus:outline-none transition ${
                         isLight
@@ -663,7 +704,7 @@ export default function SettingsModal({
                     className="px-4 py-2 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white transition flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <KeyRound className="w-3.5 h-3.5" />
-                    <span>Guardar Nuevo PIN</span>
+                    <span>Guardar PIN de {usersList.find(u => u.id === targetUserId)?.nombre}</span>
                   </button>
                 </div>
               </form>

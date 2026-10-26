@@ -364,38 +364,102 @@ export function savePayallManualProfit(fechaIso, montoBs) {
 }
 
 // ==========================================
-// SEGURIDAD & PIN DE ACCESO
+// SEGURIDAD, USUARIOS Y ROLES (DUEÑO, SOCIO, VENDEDOR)
 // ==========================================
 const KEY_PIN = 'recargas_security_pin_v2';
+const KEY_USERS = 'recargas_users_config_v1';
 const KEY_SESSION_UNLOCKED = 'recargas_session_unlocked_v2';
-export const DEFAULT_SECURITY_PIN = '2828';
+const KEY_ACTIVE_USER = 'recargas_active_user_v1';
 
-export function getSecurityPin() {
-  if (typeof window === 'undefined') return DEFAULT_SECURITY_PIN;
+export const DEFAULT_USERS = [
+  { id: 'dueno', nombre: 'Dueño', rol: 'admin', pin: '2828' },
+  { id: 'socio', nombre: 'Socio', rol: 'admin', pin: '2829' },
+  { id: 'vendedor', nombre: 'Vendedor', rol: 'vendedor', pin: '1234' }
+];
+
+export function getUsersConfig() {
+  if (typeof window === 'undefined') return DEFAULT_USERS;
   try {
-    const pin = localStorage.getItem(KEY_PIN);
-    return pin && pin.trim().length >= 4 ? pin.trim() : DEFAULT_SECURITY_PIN;
+    const raw = localStorage.getItem(KEY_USERS);
+    if (!raw) return DEFAULT_USERS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_USERS;
+    // Asegurar que existan los 3 roles
+    return DEFAULT_USERS.map(def => {
+      const found = parsed.find(u => u.id === def.id);
+      return found ? { ...def, ...found } : def;
+    });
   } catch {
-    return DEFAULT_SECURITY_PIN;
+    return DEFAULT_USERS;
   }
 }
 
-export function saveSecurityPin(newPin) {
+export function saveUsersConfig(usersList) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(KEY_USERS, JSON.stringify(usersList));
+  }
+  syncConfigToSupabase('security_users', usersList);
+  return usersList;
+}
+
+export function updateUserPin(userId, newPin) {
   const cleanPin = String(newPin || '').trim();
   if (cleanPin.length < 4) {
     return { success: false, error: 'El PIN debe tener al menos 4 dígitos' };
   }
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(KEY_PIN, cleanPin);
+  const users = getUsersConfig();
+  const updated = users.map(u => u.id === userId ? { ...u, pin: cleanPin } : u);
+  saveUsersConfig(updated);
+
+  // Si se actualizó el dueño, sincronizar también el PIN principal legacy
+  if (userId === 'dueno') {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(KEY_PIN, cleanPin);
+    }
+    syncConfigToSupabase('security_pin', cleanPin);
   }
-  syncConfigToSupabase('security_pin', cleanPin);
-  return { success: true, pin: cleanPin };
+
+  return { success: true, users: updated };
+}
+
+export function getSecurityPin() {
+  const users = getUsersConfig();
+  const dueno = users.find(u => u.id === 'dueno');
+  return dueno?.pin || '2828';
+}
+
+export function saveSecurityPin(newPin) {
+  return updateUserPin('dueno', newPin);
+}
+
+export function getActiveUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(KEY_ACTIVE_USER);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveUser(user) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      sessionStorage.setItem(KEY_ACTIVE_USER, JSON.stringify(user));
+      sessionStorage.setItem(KEY_SESSION_UNLOCKED, 'true');
+    } else {
+      sessionStorage.removeItem(KEY_ACTIVE_USER);
+      sessionStorage.removeItem(KEY_SESSION_UNLOCKED);
+    }
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export function isSessionUnlocked() {
   if (typeof window === 'undefined') return false;
   try {
-    // Verificamos sessionStorage primero o localStorage temporal
     return sessionStorage.getItem(KEY_SESSION_UNLOCKED) === 'true';
   } catch {
     return false;
@@ -409,16 +473,43 @@ export function setSessionUnlocked(unlocked) {
       sessionStorage.setItem(KEY_SESSION_UNLOCKED, 'true');
     } else {
       sessionStorage.removeItem(KEY_SESSION_UNLOCKED);
+      sessionStorage.removeItem(KEY_ACTIVE_USER);
     }
   } catch {
     // Ignore storage errors
   }
 }
 
-export function verifySecurityPin(inputPin) {
+export function authenticateUserByPin(inputPin) {
   const clean = String(inputPin || '').trim();
-  const currentPin = getSecurityPin();
-  return clean === currentPin;
+  if (!clean) return { success: false, error: 'PIN requerido' };
+
+  const users = getUsersConfig();
+  const matched = users.find(u => String(u.pin).trim() === clean);
+
+  if (matched) {
+    const safeUser = { id: matched.id, nombre: matched.nombre, rol: matched.rol };
+    setActiveUser(safeUser);
+    return { success: true, user: safeUser };
+  }
+
+  // Compatibilidad legacy si el PIN no coincide con ninguno pero es igual a recargas_security_pin_v2
+  if (typeof window !== 'undefined') {
+    const legacyPin = localStorage.getItem(KEY_PIN);
+    if (legacyPin && legacyPin.trim() === clean) {
+      const duenoUser = { id: 'dueno', nombre: 'Dueño', rol: 'admin' };
+      setActiveUser(duenoUser);
+      return { success: true, user: duenoUser };
+    }
+  }
+
+  return { success: false, error: 'PIN de acceso incorrecto' };
 }
+
+export function verifySecurityPin(inputPin) {
+  const auth = authenticateUserByPin(inputPin);
+  return auth.success;
+}
+
 
 

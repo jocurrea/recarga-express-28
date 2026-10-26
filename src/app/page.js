@@ -34,7 +34,10 @@ import {
   INITIAL_TARIFAS,
   isSessionUnlocked,
   setSessionUnlocked,
-  saveSecurityPin
+  saveSecurityPin,
+  getActiveUser,
+  setActiveUser,
+  saveUsersConfig
 } from '@/lib/storage';
 import {
   isSupabaseConfigured,
@@ -57,6 +60,9 @@ export default function Home() {
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
   const [isMounted, setIsMounted] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const isVendedor = currentUser?.rol === 'vendedor';
 
   // Inicialización y carga de datos
   const loadInitialData = useCallback(() => {
@@ -113,6 +119,9 @@ export default function Home() {
         if (res?.securityPin) {
           saveSecurityPin(res.securityPin);
         }
+        if (res?.securityUsers) {
+          saveUsersConfig(res.securityUsers);
+        }
       });
     }
   }, []);
@@ -152,7 +161,9 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    if (isSessionUnlocked()) {
+    const existingUser = getActiveUser();
+    if (isSessionUnlocked() && existingUser) {
+      setCurrentUser(existingUser);
       setIsUnlocked(true);
     }
     setSelectedDate(getTodayDateStr());
@@ -245,6 +256,8 @@ export default function Home() {
 
   const handleLockScreen = () => {
     setSessionUnlocked(false);
+    setActiveUser(null);
+    setCurrentUser(null);
     setIsUnlocked(false);
   };
 
@@ -253,7 +266,13 @@ export default function Home() {
   if (!isUnlocked) {
     return (
       <AuthLockScreen
-        onUnlock={() => setIsUnlocked(true)}
+        onUnlock={(user) => {
+          setCurrentUser(user);
+          setIsUnlocked(true);
+          if (user?.rol === 'vendedor' && (activeTab === 'alquiler' || activeTab === 'semanal')) {
+            setActiveTab('cajero');
+          }
+        }}
         theme={theme}
       />
     );
@@ -280,6 +299,7 @@ export default function Home() {
         onToggleTheme={handleToggleTheme}
         alquilerCount={dayAlquiler.length}
         onLock={handleLockScreen}
+        currentUser={currentUser}
       />
 
       {/* Contenido Principal */}
@@ -290,6 +310,7 @@ export default function Home() {
           config={config}
           onTogglePosRent={handleTogglePosRent}
           theme={theme}
+          currentUser={currentUser}
         />
 
         {/* Vista del Cajero Rápido (3-clics) */}
@@ -385,13 +406,26 @@ export default function Home() {
                             </div>
                           </div>
                           <div className="text-right font-mono">
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">
-                              +{gan} Bs.
-                            </span>
-                            {tasaBcv > 0 && (
-                              <span className={`text-[10px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                ≈ {formatUsd(gan / tasaBcv)}
-                              </span>
+                            {!isVendedor ? (
+                              <>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">
+                                  +{gan} Bs.
+                                </span>
+                                {tasaBcv > 0 && (
+                                  <span className={`text-[10px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                    ≈ {formatUsd(gan / tasaBcv)}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                                  {formatBs(tx.montoCobrado)}
+                                </span>
+                                <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {tx.telefono || 'Sin tel.'}
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>
@@ -401,8 +435,8 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Cuadro Manual de Ganancias de Payall (Día por Día) */}
-              <PayallManualCard tasaBcv={tasaBcv} theme={theme} />
+              {/* Cuadro Manual de Ganancias de Payall (Día por Día) - Solo Administradores */}
+              {!isVendedor && <PayallManualCard tasaBcv={tasaBcv} theme={theme} />}
             </div>
           </div>
         )}
@@ -419,6 +453,7 @@ export default function Home() {
             theme={theme}
             tasaBcv={tasaBcv}
             alquilerRecords={dayAlquiler}
+            currentUser={currentUser}
           />
         )}
 

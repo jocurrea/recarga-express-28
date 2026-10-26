@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Lock, Unlock, Shield, Eye, EyeOff, Delete, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { verifySecurityPin, setSessionUnlocked, getSecurityPin } from '@/lib/storage';
+import { Lock, Unlock, Shield, Eye, EyeOff, Delete, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
+import { authenticateUserByPin, getUsersConfig } from '@/lib/storage';
 
 export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
   const isLight = theme === 'light';
@@ -11,6 +11,7 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState(null);
 
   const handleAttemptUnlock = useCallback((codeToTest) => {
     const code = codeToTest ?? pin;
@@ -21,15 +22,16 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
       return;
     }
 
-    if (verifySecurityPin(code)) {
+    const auth = authenticateUserByPin(code);
+    if (auth.success && auth.user) {
+      setLoggedInUser(auth.user);
       setIsSuccess(true);
       setErrorMsg('');
-      setSessionUnlocked(true);
       setTimeout(() => {
-        onUnlock?.();
-      }, 350);
+        onUnlock?.(auth.user);
+      }, 450);
     } else {
-      setErrorMsg('PIN de acceso incorrecto');
+      setErrorMsg(auth.error || 'PIN de acceso incorrecto');
       setIsShaking(true);
       setTimeout(() => {
         setIsShaking(false);
@@ -189,11 +191,15 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
             ) : isSuccess ? (
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-500 animate-in fade-in">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>¡Acceso Concedido! Abriendo caja...</span>
+                <span>
+                  {loggedInUser?.rol === 'admin'
+                    ? `¡Bienvenido ${loggedInUser.nombre}! (Acceso Total)`
+                    : `¡Bienvenido ${loggedInUser?.nombre || 'Vendedor'}! (Caja Registradora)`}
+                </span>
               </div>
             ) : (
               <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                Ingresa tu PIN numérico de 4 dígitos
+                Ingresa tu PIN personal de acceso
               </span>
             )}
           </div>
@@ -274,15 +280,23 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
           </button>
         </div>
 
-        {/* Ayuda de Seguridad y PIN Inicial */}
-        <div className={`mt-5 pt-4 border-t text-center text-[11px] space-y-1 ${
+        {/* Ayuda de Seguridad y PIN Inicial por Rol */}
+        <div className={`mt-5 pt-3.5 border-t text-center text-[11px] space-y-1 ${
           isLight ? 'border-slate-200 text-slate-500' : 'border-slate-800 text-slate-400'
         }`}>
-          <p className="font-semibold text-orange-500">
-            PIN inicial de fábrica: <span className="font-mono bg-orange-500/10 px-1.5 py-0.5 rounded text-orange-400 font-bold">2828</span>
-          </p>
-          <p className="text-[10px] opacity-75">
-            Puedes cambiarlo en cualquier momento desde el menú de Configuración.
+          <div className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] pt-0.5">
+            <span className="bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded text-orange-400 font-bold">
+              Dueño: 2828
+            </span>
+            <span className="bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-blue-400 font-bold">
+              Socio: 2829
+            </span>
+            <span className="bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-400 font-bold">
+              Vendedor: 1234
+            </span>
+          </div>
+          <p className="text-[10px] opacity-75 pt-1">
+            Cada PIN define los permisos automáticamente. Configurables por Dueño y Socio.
           </p>
         </div>
       </div>

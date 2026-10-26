@@ -15,9 +15,11 @@ export default function DailyTable({
   selectedDate,
   theme = 'dark',
   tasaBcv = 0,
-  alquilerRecords = []
+  alquilerRecords = [],
+  currentUser = null
 }) {
   const isLight = theme === 'light';
+  const isVendedor = currentUser?.rol === 'vendedor';
   const [filterOperadora, setFilterOperadora] = useState('todas');
   const [filterPlataforma, setFilterPlataforma] = useState('todas'); // 'todas' | 'payall' | 'pagodirecto'
   const [filterMetodo, setFilterMetodo] = useState('todos');
@@ -316,29 +318,34 @@ export default function DailyTable({
               />
             </div>
 
-            {/* Botón Principal: Exportar PDF / Imprimir */}
-            <button
-              id="export-pdf-btn"
-              onClick={() => setShowPdfModal(true)}
-              disabled={filteredTransactions.length === 0}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-xs cursor-pointer"
-              title="Abrir vista previa e imprimir o guardar en PDF directo"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Exportar PDF</span>
-            </button>
+            {/* Botones de Exportar (Solo Administradores) */}
+            {!isVendedor && (
+              <>
+                {/* Botón Principal: Exportar PDF / Imprimir */}
+                <button
+                  id="export-pdf-btn"
+                  onClick={() => setShowPdfModal(true)}
+                  disabled={filteredTransactions.length === 0}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-xs cursor-pointer"
+                  title="Abrir vista previa e imprimir o guardar en PDF directo"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Exportar PDF</span>
+                </button>
 
-            {/* Botón Secundario: Excel */}
-            <button
-              id="export-csv-btn"
-              onClick={exportToExcelNative}
-              disabled={filteredTransactions.length === 0}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-semibold disabled:opacity-40 transition cursor-pointer"
-              title="Descargar tabla en formato Excel (.xlsx)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Excel</span>
-            </button>
+                {/* Botón Secundario: Excel */}
+                <button
+                  id="export-csv-btn"
+                  onClick={exportToExcelNative}
+                  disabled={filteredTransactions.length === 0}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-semibold disabled:opacity-40 transition cursor-pointer"
+                  title="Descargar tabla en formato Excel (.xlsx)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Excel</span>
+                </button>
+              </>
+            )}
 
             {transactions.length > 0 && onClearDateTransactions && (
               <button
@@ -758,17 +765,19 @@ export default function DailyTable({
                 </div>
               </div>
 
-              {/* Resumen de ganancia recalculada */}
-              <div className={`p-3 rounded-xl border flex items-center justify-between ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
-              }`}>
-                <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                  Ganancia estimada con este cobro:
-                </span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                  +{formatBs(Math.max(0, Number(editForm.montoCobrado || 0) - Number(editForm.montoRecarga || 0)))}
-                </span>
-              </div>
+              {/* Resumen de ganancia recalculada (Oculto a vendedor) */}
+              {!isVendedor && (
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
+                }`}>
+                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Ganancia estimada con este cobro:
+                  </span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                    +{formatBs(Math.max(0, Number(editForm.montoCobrado || 0) - Number(editForm.montoRecarga || 0)))}
+                  </span>
+                </div>
+              )}
 
               {/* Alerta de error de validación */}
               {editError && (
@@ -824,14 +833,14 @@ export default function DailyTable({
                 <th className="py-3 px-3 text-right">Efectivo</th>
                 <th className="py-3 px-3 text-right">Punto</th>
                 <th className="py-3 px-3 text-right">BioPago</th>
-                <th className="py-3 px-3 text-right">Ganancia</th>
+                {!isVendedor && <th className="py-3 px-3 text-right">Ganancia</th>}
                 <th className="py-3 px-2 text-center">Acción</th>
               </tr>
             </thead>
             <tbody className={`divide-y font-mono ${isLight ? 'divide-slate-100' : 'divide-slate-800'}`}>
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-10 text-center font-sans">
+                  <td colSpan={isVendedor ? 11 : 12} className="py-10 text-center font-sans">
                     <p className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>No hay recargas registradas para este filtro o fecha.</p>
                     <p className="text-xs text-slate-500 mt-1">Usa la pestaña "Cajero Rápido" para registrar nuevas recargas.</p>
                   </td>
@@ -963,16 +972,18 @@ export default function DailyTable({
                           '-'
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono block">
-                          +{formatBs(gan)}
-                        </span>
-                        {tasaBcv > 0 && (
-                          <span className={`text-[10px] block font-mono font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            ≈ {formatUsd(gan / tasaBcv)}
+                      {!isVendedor && (
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono block">
+                            +{formatBs(gan)}
                           </span>
-                        )}
-                      </td>
+                          {tasaBcv > 0 && (
+                            <span className={`text-[10px] block font-mono font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                              ≈ {formatUsd(gan / tasaBcv)}
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-2.5 px-2 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
@@ -1038,16 +1049,18 @@ export default function DailyTable({
                   <td className="py-3 px-3 text-right text-amber-600 dark:text-amber-400 font-bold">
                     {formatBs(totals.biopago)}
                   </td>
-                  <td className="py-3 px-3 text-right">
-                    <span className="text-emerald-600 dark:text-emerald-400 text-sm font-black block font-mono">
-                      +{formatBs(totals.ganancia)}
-                    </span>
-                    {tasaBcv > 0 && (
-                      <span className={`text-[11px] block font-mono font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        ≈ {formatUsd(totals.ganancia / tasaBcv)}
+                  {!isVendedor && (
+                    <td className="py-3 px-3 text-right">
+                      <span className="text-emerald-600 dark:text-emerald-400 text-sm font-black block font-mono">
+                        +{formatBs(totals.ganancia)}
                       </span>
-                    )}
-                  </td>
+                      {tasaBcv > 0 && (
+                        <span className={`text-[11px] block font-mono font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                          ≈ {formatUsd(totals.ganancia / tasaBcv)}
+                        </span>
+                      )}
+                    </td>
+                  )}
                   <td></td>
                 </tr>
               </tfoot>
