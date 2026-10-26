@@ -9,6 +9,8 @@
   "background_color": "#060b18",
   "theme_color": "#060b18",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "categories": ["finance", "utilities"],
   "icons": [
     {
       "src": "/icon-192.png",

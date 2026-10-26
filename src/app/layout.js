@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import PwaRegister from "@/components/PwaRegister";
+import PwaInstallBanner from "@/components/PwaInstallBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,8 +43,6 @@ export const viewport = {
   userScalable: false,
 };
 
-import PwaRegister from "@/components/PwaRegister";
-
 export default function RootLayout({ children }) {
   return (
     <html
@@ -59,9 +59,25 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="RE28" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.deferredPrompt = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.deferredPrompt = e;
+                window.dispatchEvent(new CustomEvent('pwa-prompt-ready', { detail: e }));
+              });
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+              }
+            `
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-[#060b18] text-slate-100">
         <PwaRegister />
+        <PwaInstallBanner />
         {children}
       </body>
     </html>
