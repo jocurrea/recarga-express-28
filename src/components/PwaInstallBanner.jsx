@@ -185,14 +185,23 @@ export default function PwaInstallBanner() {
                 onClick={handleInstallClick}
                 className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-lg shadow-orange-600/30 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Download className="w-4 h-4" />
-                <span>Instalar Aplicación Ahora</span>
+                <Smartphone className="w-4 h-4" />
+                <span>Instalar en Teléfono</span>
               </button>
+
+              <a
+                href="/RE28.apk"
+                download="RE28.apk"
+                className="w-full py-2.5 px-3 rounded-2xl font-semibold text-xs bg-slate-800/90 hover:bg-slate-700 text-orange-300 border border-orange-500/20 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5 text-orange-400" />
+                <span>Descargar APK directo (para Xiaomi / Redmi)</span>
+              </a>
 
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition text-center cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition text-center cursor-pointer"
               >
                 Continuar en navegador web
               </button>

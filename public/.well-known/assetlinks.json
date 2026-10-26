@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.recargaexpress28.twa",
+        "sha256_cert_fingerprints": ["83:A3:F1:15:F5:FD:E0:3B:C9:5C:FA:A9:C2:98:38:F8:CB:D5:E8:E7:F3:65:BB:77:92:B3:45:37:FA:BC:76:8E"]
+      }
+    }]
