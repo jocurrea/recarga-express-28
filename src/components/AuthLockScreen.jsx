@@ -279,26 +279,6 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
             <span>Ingresar a Caja</span>
           </button>
         </div>
-
-        {/* Ayuda de Seguridad y PIN Inicial por Rol */}
-        <div className={`mt-5 pt-3.5 border-t text-center text-[11px] space-y-1 ${
-          isLight ? 'border-slate-200 text-slate-500' : 'border-slate-800 text-slate-400'
-        }`}>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] pt-0.5">
-            <span className="bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded text-orange-400 font-bold">
-              Dueño: 2828
-            </span>
-            <span className="bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-blue-400 font-bold">
-              Socio: 2829
-            </span>
-            <span className="bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-400 font-bold">
-              Vendedor: 1234
-            </span>
-          </div>
-          <p className="text-[10px] opacity-75 pt-1">
-            Cada PIN define los permisos automáticamente. Configurables por Dueño y Socio.
-          </p>
-        </div>
       </div>
     </div>
   );
