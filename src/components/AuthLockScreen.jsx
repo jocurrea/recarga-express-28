@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Lock, Unlock, Shield, Eye, EyeOff, Delete, AlertCircle, CheckCircle2, UserCheck, Smartphone, Share2, MoreVertical, X } from 'lucide-react';
-import { authenticateUserByPin, getUsersConfig } from '@/lib/storage';
+import { Lock, Unlock, Shield, Eye, EyeOff, Delete, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { authenticateUserByPin } from '@/lib/storage';
 
 export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
   const isLight = theme === 'light';
@@ -12,19 +12,6 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState(null);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
-
-  const handleInstallClick = async () => {
-    if (typeof window !== 'undefined' && window.deferredPrompt) {
-      window.deferredPrompt.prompt();
-      const choice = await window.deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        window.deferredPrompt = null;
-      }
-    } else {
-      setShowInstallGuide(true);
-    }
-  };
 
   const handleAttemptUnlock = useCallback((codeToTest) => {
     const code = codeToTest ?? pin;
@@ -63,9 +50,7 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
           const next = pin + e.key;
           setPin(next);
           setErrorMsg('');
-          // Si el PIN alcanza la longitud del PIN configurado, intentamos validar automáticamente
-          const targetPin = getSecurityPin();
-          if (next.length === targetPin.length) {
+          if (next.length === 4) {
             handleAttemptUnlock(next);
           }
         }
@@ -89,8 +74,7 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
     const next = pin + numStr;
     setPin(next);
     setErrorMsg('');
-    const targetPin = getSecurityPin();
-    if (next.length === targetPin.length) {
+    if (next.length === 4) {
       handleAttemptUnlock(next);
     }
   };
@@ -276,7 +260,7 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
         </div>
 
         {/* Botón principal de Desbloqueo */}
-        <div className="mt-5 max-w-[280px] mx-auto space-y-2">
+        <div className="mt-5 max-w-[280px] mx-auto">
           <button
             type="button"
             id="auth-unlock-btn"
@@ -291,77 +275,8 @@ export default function AuthLockScreen({ onUnlock, theme = 'dark' }) {
             <Unlock className="w-4 h-4" />
             <span>Ingresar a Caja</span>
           </button>
-
-          {/* Botón de Ayuda para Instalar App en Teléfono */}
-          <button
-            type="button"
-            id="install-pwa-btn"
-            onClick={handleInstallClick}
-            className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
-              isLight
-                ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-            <span>Instalar RE28 en este Teléfono</span>
-          </button>
         </div>
       </div>
-
-      {/* Modal de Guía de Instalación para Teléfonos */}
-      {showInstallGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
-          <div className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl space-y-4 ${
-            isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'
-          }`}>
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <img src="/app-icon.png" alt="RE28" className="w-8 h-8 rounded-lg object-contain border border-slate-200 dark:border-slate-700 shadow-xs" />
-                <div>
-                  <h3 className="font-bold text-sm">Instalar RE28</h3>
-                  <p className="text-[11px] text-slate-500">Acceso directo en pantalla de inicio</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowInstallGuide(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs leading-relaxed">
-              <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-300">
-                <strong className="block mb-1 text-[13px]">📱 En Android (Google Chrome):</strong>
-                <p className="mb-1">En las versiones recientes de Chrome:</p>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Toca el botón <strong>"Compartir..."</strong> (el que tiene el ícono de WhatsApp).</li>
-                  <li>En el menú que se abre, baja y toca <strong>"Agregar a la pantalla principal"</strong> (o "Instalar aplicación").</li>
-                  <li>Confirma el nombre <strong>RE28</strong> y listo.</li>
-                </ol>
-              </div>
-
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-300">
-                <strong className="block mb-1 text-[13px]">🍏 En iPhone (Safari):</strong>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Toca el botón <strong>Compartir</strong> (cuadrado con flecha hacia arriba).</li>
-                  <li>Selecciona <strong>"Agregar al inicio"</strong>.</li>
-                </ol>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowInstallGuide(false)}
-              className="w-full py-2.5 rounded-xl font-bold text-xs bg-orange-600 hover:bg-orange-500 text-white transition shadow-sm cursor-pointer"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
