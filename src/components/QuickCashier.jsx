@@ -888,7 +888,9 @@ export default function QuickCashier({
                 onChange={(e) => setClienteNombre(e.target.value)}
                 className={`w-full rounded-xl pl-10 pr-3 py-2 text-xs sm:text-sm border focus:outline-none transition ${
                   estadoPago === 'pendiente' && !clienteNombre.trim()
-                    ? 'border-amber-500 bg-amber-500/10 focus:ring-1 focus:ring-amber-500'
+                    ? isLight
+                      ? 'border-amber-500 bg-amber-50 text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-amber-500'
+                      : 'border-amber-500 bg-amber-950/30 text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-amber-500'
                     : isLight
                     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-orange-500'
                     : 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-orange-400'
@@ -917,10 +919,16 @@ export default function QuickCashier({
           </div>
 
           {estadoPago === 'pendiente' && (
-            <div className="mt-2.5 flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-700 dark:text-amber-300">
-              <Clock className="w-4 h-4 shrink-0" />
-              <span>
-                <strong>Aviso de Fiado:</strong> Se registrará como deuda pendiente. En la tabla podrás ver quién debe y cambiarlo a verde con un clic al cobrarle.
+            <div className={`mt-2.5 flex items-center gap-2.5 p-3 rounded-xl border text-xs leading-relaxed ${
+              isLight
+                ? 'bg-amber-100/90 border-amber-400 text-amber-950 font-medium shadow-xs'
+                : 'bg-amber-950/50 border-amber-500/40 text-amber-100 font-medium'
+            }`}>
+              <div className={`p-1.5 rounded-lg shrink-0 ${isLight ? 'bg-amber-300 text-amber-950' : 'bg-amber-500/20 text-amber-300'}`}>
+                <Clock className="w-4 h-4" />
+              </div>
+              <span className={isLight ? 'text-amber-950 font-semibold' : 'text-amber-100 font-medium'}>
+                <strong className={`font-black ${isLight ? 'text-amber-950' : 'text-amber-300'}`}>Aviso de Fiado:</strong> Se registrará como deuda pendiente. En la tabla podrás ver quién debe y cambiarlo a verde con un clic al cobrarle.
               </span>
             </div>
           )}

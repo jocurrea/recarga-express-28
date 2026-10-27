@@ -290,7 +290,7 @@ export default function DailyTable({
                   filterEstado === 'pendientes'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : pendientesCount > 0
-                    ? 'text-amber-600 dark:text-amber-400 font-black hover:opacity-80'
+                    ? isLight ? 'text-amber-950 bg-amber-200/80 border border-amber-300 font-black' : 'text-amber-200 bg-amber-500/30 font-black'
                     : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -943,15 +943,23 @@ export default function DailyTable({
                               setPayPendingTx(tx);
                               setPayPendingMethod(tx.metodo === 'mixto' ? 'efectivo' : (tx.metodo || 'efectivo'));
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition cursor-pointer shadow-xs group"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-xs group ${
+                              isLight
+                                ? 'bg-amber-600 hover:bg-emerald-600 text-white shadow-amber-600/20'
+                                : 'bg-amber-600 hover:bg-emerald-600 text-white shadow-amber-900/30'
+                            }`}
                             title="Recarga fiada pendiente. Clic para cobrar y pasar a verde"
                           >
-                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 group-hover:text-white shrink-0" />
-                            <span className="group-hover:hidden">⏳ Pendiente</span>
-                            <span className="hidden group-hover:inline">Cobrar</span>
+                            <Clock className="w-3.5 h-3.5 text-white shrink-0" />
+                            <span className="group-hover:hidden font-black">Pendiente</span>
+                            <span className="hidden group-hover:inline font-black">Cobrar</span>
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            isLight
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          }`}>
                             <CheckCircle2 className="w-3 h-3 shrink-0" />
                             Pagado
                           </span>
@@ -981,11 +989,11 @@ export default function DailyTable({
                           '-'
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-amber-600 dark:text-amber-400 font-bold">
+                      <td className={`py-2.5 px-3 text-right font-bold ${isLight ? 'text-amber-900 font-bold' : 'text-amber-400'}`}>
                         {tx.metodo === 'mixto' && Number(tx.montoBiopago || 0) > 0 ? (
                           <div>
                             <span>{formatBs(tx.montoBiopago)}</span>
-                            <span className="block text-[9px] font-sans font-medium text-amber-700 dark:text-amber-300 opacity-80">biopago</span>
+                            <span className={`block text-[9px] font-sans font-medium ${isLight ? 'text-amber-950 font-bold' : 'text-amber-300'}`}>biopago</span>
                           </div>
                         ) : tx.metodo === 'biopago' ? (
                           formatBs(tx.montoCobrado)
@@ -1052,11 +1060,17 @@ export default function DailyTable({
                   </td>
                   <td className="py-3 px-2 text-center text-xs">
                     {pendientesCount > 0 ? (
-                      <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">
+                      <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-md ${
+                        isLight
+                          ? 'bg-amber-200 text-amber-950 border border-amber-300 font-black'
+                          : 'bg-amber-500/30 text-amber-200 border border-amber-500/40 font-black'
+                      }`}>
                         {pendientesCount} fiado{pendientesCount > 1 ? 's' : ''}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">
+                      <span className={`text-[11px] font-black uppercase ${
+                        isLight ? 'text-emerald-700' : 'text-emerald-400'
+                      }`}>
                         Al día
                       </span>
                     )}
@@ -1067,7 +1081,9 @@ export default function DailyTable({
                   <td className="py-3 px-3 text-right text-sky-600 dark:text-sky-400 font-bold">
                     {formatBs(totals.punto)}
                   </td>
-                  <td className="py-3 px-3 text-right text-amber-600 dark:text-amber-400 font-bold">
+                  <td className={`py-3 px-3 text-right font-bold ${
+                    isLight ? 'text-amber-900 font-extrabold' : 'text-amber-300'
+                  }`}>
                     {formatBs(totals.biopago)}
                   </td>
                   {!isVendedor && (
