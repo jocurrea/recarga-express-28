@@ -333,18 +333,18 @@ export default function Navbar({
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className={`max-w-7xl mx-auto mt-2.5 flex items-center justify-between border-t pt-2 gap-1 overflow-x-auto ${
+      <div className={`max-w-7xl mx-auto mt-2.5 flex items-center justify-start border-t pt-2 gap-1 overflow-x-auto no-scrollbar scroll-smooth ${
         isLight ? 'border-slate-100' : 'border-slate-800'
       }`}>
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pb-1">
           <button
             id="tab-cashier-btn"
             onClick={() => setActiveTab('cajero')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'cajero'
                 ? 'bg-orange-600 text-white shadow-xs'
                 : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -354,11 +354,11 @@ export default function Navbar({
           <button
             id="tab-daily-btn"
             onClick={() => setActiveTab('diario')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'diario'
                 ? 'bg-orange-600 text-white shadow-xs'
                 : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -370,11 +370,11 @@ export default function Navbar({
             <button
               id="tab-alquiler-btn"
               onClick={() => setActiveTab('alquiler')}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'alquiler'
                   ? 'bg-orange-600 text-white shadow-xs'
                   : isLight
-                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
@@ -398,11 +398,11 @@ export default function Navbar({
             <button
               id="tab-weekly-btn"
               onClick={() => setActiveTab('semanal')}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'semanal'
                   ? 'bg-orange-600 text-white shadow-xs'
                   : isLight
-                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >

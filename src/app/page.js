@@ -394,29 +394,29 @@ export default function Home() {
                         >
                           <div>
                             <div className="font-bold flex items-center gap-1.5 flex-wrap">
-                              <span className={isLight ? 'text-slate-900' : 'text-white'}>{tx.operadoraNombre}</span>
-                              <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                {tx.montoRecarga} Bs.
+                              <span className={isLight ? 'text-slate-900 font-bold' : 'text-white font-bold'}>{tx.operadoraNombre}</span>
+                              <span className={`text-[11px] font-mono font-bold ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>
+                                {formatBs(tx.montoRecarga)}
                               </span>
                               <span
-                                className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-2xs ${
                                   isPagoDirecto
-                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-emerald-700 text-white'
                                 }`}
                               >
                                 {isPagoDirecto ? 'PagoDirecto' : 'Payall'}
                               </span>
                               {tx.estadoPago === 'pendiente' && (
-                                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded border bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40">
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white shadow-2xs">
                                   ⏳ Fiado
                                 </span>
                               )}
                             </div>
-                            <div className={`text-[10px] capitalize ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {tx.hora} • Cobrado: {tx.montoCobrado} Bs. ({tx.metodo})
+                            <div className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                              {tx.hora} • Cobrado: <strong className={isLight ? 'text-slate-950 font-black' : 'text-white font-bold'}>{formatBs(tx.montoCobrado)}</strong> ({tx.metodo})
                               {tx.clienteNombre && (
-                                <span className="font-bold text-amber-600 dark:text-amber-400 block lowercase font-sans">
+                                <span className="font-bold text-amber-700 dark:text-amber-300 block capitalize font-sans">
                                   👤 {tx.clienteNombre}
                                 </span>
                               )}
@@ -425,21 +425,21 @@ export default function Home() {
                           <div className="text-right font-mono">
                             {!isVendedor ? (
                               <>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">
-                                  +{gan} Bs.
+                                <span className={`font-black block text-sm ${isLight ? 'text-emerald-900' : 'text-emerald-400'}`}>
+                                  +{formatBs(gan)}
                                 </span>
                                 {tasaBcv > 0 && (
-                                  <span className={`text-[10px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  <span className={`text-[10px] block font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                                     ≈ {formatUsd(gan / tasaBcv)}
                                   </span>
                                 )}
                               </>
                             ) : (
                               <>
-                                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                                <span className={`font-black font-mono block text-sm ${isLight ? 'text-slate-950 font-black' : 'text-white'}`}>
                                   {formatBs(tx.montoCobrado)}
                                 </span>
-                                <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <span className={`text-[10px] block ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                                   {tx.telefono || 'Sin tel.'}
                                 </span>
                               </>

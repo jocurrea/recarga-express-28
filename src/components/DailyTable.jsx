@@ -219,7 +219,7 @@ export default function DailyTable({
         isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'
       }`}>
         {/* Fila 1: Filtro por Plataforma y Operadora */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Filtros: Origen y Estado de Cobro */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Filtro Plataforma (Payall / PagoDirecto) */}
@@ -232,7 +232,7 @@ export default function DailyTable({
                 className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
                   filterPlataforma === 'todas'
                     ? 'bg-orange-600 text-white shadow-xs'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    : isLight ? 'text-slate-700 hover:text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 Todas
@@ -241,8 +241,8 @@ export default function DailyTable({
                 onClick={() => setFilterPlataforma('payall')}
                 className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
                   filterPlataforma === 'payall'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-emerald-600 dark:text-emerald-400 hover:opacity-80'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : isLight ? 'text-emerald-900 font-extrabold hover:opacity-80' : 'text-emerald-400 hover:opacity-80'
                 }`}
               >
                 Payall
@@ -252,7 +252,7 @@ export default function DailyTable({
                 className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
                   filterPlataforma === 'pagodirecto'
                     ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-blue-600 dark:text-blue-400 hover:opacity-80'
+                    : isLight ? 'text-blue-900 font-extrabold hover:opacity-80' : 'text-blue-400 hover:opacity-80'
                 }`}
               >
                 PagoDirecto
@@ -268,8 +268,8 @@ export default function DailyTable({
                 onClick={() => setFilterEstado('todos')}
                 className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
                   filterEstado === 'todos'
-                    ? 'bg-slate-700 text-white shadow-xs'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    ? 'bg-slate-800 text-white shadow-xs'
+                    : isLight ? 'text-slate-700 hover:text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 Todos
@@ -278,8 +278,8 @@ export default function DailyTable({
                 onClick={() => setFilterEstado('pagados')}
                 className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
                   filterEstado === 'pagados'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-emerald-600 dark:text-emerald-400 hover:opacity-80'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : isLight ? 'text-emerald-900 font-extrabold hover:opacity-80' : 'text-emerald-400 hover:opacity-80'
                 }`}
               >
                 Pagados
@@ -291,7 +291,7 @@ export default function DailyTable({
                     ? 'bg-amber-600 text-white shadow-xs'
                     : pendientesCount > 0
                     ? isLight ? 'text-amber-950 bg-amber-200/80 border border-amber-300 font-black' : 'text-amber-200 bg-amber-500/30 font-black'
-                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    : isLight ? 'text-slate-700 hover:text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Clock className="w-3 h-3" />
@@ -301,8 +301,8 @@ export default function DailyTable({
           </div>
 
           {/* Búsqueda, Exportar y Limpiar */}
-          <div className="flex items-center gap-2">
-            <div className="relative w-44 sm:w-56">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div className="relative flex-1 min-w-[140px] sm:w-56">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 id="search-transactions-input"
@@ -318,48 +318,50 @@ export default function DailyTable({
               />
             </div>
 
-            {/* Botones de Exportar (Solo Administradores) */}
-            {!isVendedor && (
-              <>
-                {/* Botón Principal: Exportar PDF / Imprimir */}
-                <button
-                  id="export-pdf-btn"
-                  onClick={() => setShowPdfModal(true)}
-                  disabled={filteredTransactions.length === 0}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-xs cursor-pointer"
-                  title="Abrir vista previa e imprimir o guardar en PDF directo"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Exportar PDF</span>
-                </button>
+            {/* Botones de Acción Agrupados */}
+            <div className="flex items-center gap-2 shrink-0">
+              {!isVendedor && (
+                <>
+                  {/* Botón Principal: Exportar PDF / Imprimir */}
+                  <button
+                    id="export-pdf-btn"
+                    onClick={() => setShowPdfModal(true)}
+                    disabled={filteredTransactions.length === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-xs cursor-pointer"
+                    title="Abrir vista previa e imprimir o guardar en PDF directo"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>PDF</span>
+                  </button>
 
-                {/* Botón Secundario: Excel */}
-                <button
-                  id="export-csv-btn"
-                  onClick={exportToExcelNative}
-                  disabled={filteredTransactions.length === 0}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-semibold disabled:opacity-40 transition cursor-pointer"
-                  title="Descargar tabla en formato Excel (.xlsx)"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Excel</span>
-                </button>
-              </>
-            )}
+                  {/* Botón Secundario: Excel */}
+                  <button
+                    id="export-csv-btn"
+                    onClick={exportToExcelNative}
+                    disabled={filteredTransactions.length === 0}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold disabled:opacity-40 transition cursor-pointer shadow-xs"
+                    title="Descargar tabla en formato Excel (.xlsx)"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Excel</span>
+                  </button>
+                </>
+              )}
 
-            {transactions.length > 0 && onClearDateTransactions && (
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className={`p-1.5 rounded-xl border text-xs transition cursor-pointer ${
-                  isLight
-                    ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100'
-                    : 'bg-rose-950/40 border-rose-800 text-rose-300 hover:bg-rose-900/60'
-                }`}
-                title="Vaciar las recargas registradas de este día a cero"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+              {transactions.length > 0 && onClearDateTransactions && (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className={`p-1.5 rounded-xl border text-xs transition cursor-pointer ${
+                    isLight
+                      ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100'
+                      : 'bg-rose-950/40 border-rose-800 text-rose-300 hover:bg-rose-900/60'
+                  }`}
+                  title="Vaciar las recargas registradas de este día a cero"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -900,14 +902,10 @@ export default function DailyTable({
                       </td>
                       <td className="py-2.5 px-3 font-sans">
                         <span
-                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-2xs ${
                             isPagoDirecto
-                              ? isLight
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-blue-950/60 text-blue-300 border-blue-800'
-                              : isLight
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-emerald-700 text-white'
                           }`}
                         >
                           {isPagoDirecto ? 'PagoDirecto' : 'Payall'}
@@ -919,20 +917,20 @@ export default function DailyTable({
                             <span className={`font-bold block ${isLight ? 'text-slate-900' : 'text-white'}`}>
                               {tx.clienteNombre}
                             </span>
-                            <span className={`text-[11px] block font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <span className={`text-[11px] block font-mono ${isLight ? 'text-slate-600 font-semibold' : 'text-slate-400'}`}>
                               {tx.telefono || '-'}
                             </span>
                           </div>
                         ) : (
-                          <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                          <span className={isLight ? 'text-slate-700 font-semibold' : 'text-slate-300'}>
                             {tx.telefono || '-'}
                           </span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td className={`py-2.5 px-3 text-right font-mono font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                         {formatBs(tx.montoRecarga)}
                       </td>
-                      <td className={`py-2.5 px-3 text-right font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <td className={`py-2.5 px-3 text-right font-mono font-black ${isLight ? 'text-slate-950 font-black' : 'text-white font-bold'}`}>
                         {formatBs(tx.montoCobrado)}
                       </td>
                       <td className="py-2.5 px-2 text-center">
