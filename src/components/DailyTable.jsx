@@ -396,17 +396,38 @@ export default function DailyTable({
 
         {/* BANNER DE CLIENTES CON RECARGAS FIADAS PENDIENTES */}
         {pendientesCount > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 sm:p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs font-mono">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>
-                Hay <strong>{pendientesCount}</strong> {pendientesCount === 1 ? 'cliente con recarga fiada pendiente' : 'clientes con recargas fiadas pendientes'} por cobrar: <strong className="text-amber-700 dark:text-amber-300 font-black text-sm">{formatBs(pendientesTotalBs)}</strong>
-              </span>
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border shadow-sm transition-all ${
+            isLight
+              ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+              : 'bg-amber-950/40 border-amber-500/40 text-amber-100'
+          }`}>
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl shrink-0 ${
+                isLight ? 'bg-amber-200/80 text-amber-900 shadow-xs' : 'bg-amber-500/20 text-amber-300'
+              }`}>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-xs sm:text-sm leading-relaxed">
+                <span className={isLight ? 'text-amber-950 font-semibold' : 'text-amber-200 font-medium'}>
+                  Hay <strong className={`font-black ${isLight ? 'text-amber-950 underline decoration-amber-400' : 'text-white'}`}>{pendientesCount}</strong> {pendientesCount === 1 ? 'cliente con recarga fiada pendiente' : 'clientes con recargas fiadas pendientes'} por cobrar:
+                </span>{' '}
+                <span className={`inline-block font-mono font-black text-sm sm:text-base px-2.5 py-0.5 rounded-lg ml-1 shadow-xs ${
+                  isLight
+                    ? 'bg-amber-200 text-amber-950 border border-amber-300'
+                    : 'bg-amber-500/30 text-amber-200 border border-amber-500/40'
+                }`}>
+                  {formatBs(pendientesTotalBs)}
+                </span>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setFilterEstado(filterEstado === 'pendientes' ? 'todos' : 'pendientes')}
-              className="px-2.5 py-1 rounded-lg text-xs font-sans font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition cursor-pointer"
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap self-start sm:self-auto ${
+                filterEstado === 'pendientes'
+                  ? 'bg-amber-800 hover:bg-amber-900 text-white'
+                  : 'bg-amber-600 hover:bg-amber-500 text-white'
+              }`}
             >
               {filterEstado === 'pendientes' ? 'Ver Todas las Recargas' : 'Ver Solo Fiados Pendientes'}
             </button>

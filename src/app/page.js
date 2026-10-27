@@ -134,6 +134,19 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      }
+    }
+  }, [theme]);
+
   // Fetch BCV Rate (con soporte para forzar actualización directa al banco)
   const fetchBcvRate = useCallback(async (force = false) => {
     setLoadingBcv(true);
