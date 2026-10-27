@@ -10,6 +10,7 @@ import AlquilerPuntoView from '@/components/AlquilerPuntoView';
 import PayallManualCard from '@/components/PayallManualCard';
 import SettingsModal from '@/components/SettingsModal';
 import AuthLockScreen from '@/components/AuthLockScreen';
+import PwaInstallBanner from '@/components/PwaInstallBanner';
 import { getTasaBcv, saveManualBcvRate, getManualBcvRate } from '@/lib/bcv';
 import { calculateDailySummary, formatBs, formatUsd } from '@/lib/calculator';
 import { DEFAULT_CONFIG } from '@/lib/constants';
@@ -278,16 +279,19 @@ export default function Home() {
 
   if (!isUnlocked) {
     return (
-      <AuthLockScreen
-        onUnlock={(user) => {
-          setCurrentUser(user);
-          setIsUnlocked(true);
-          if (user?.rol === 'vendedor' && (activeTab === 'alquiler' || activeTab === 'semanal')) {
-            setActiveTab('cajero');
-          }
-        }}
-        theme={theme}
-      />
+      <>
+        <AuthLockScreen
+          onUnlock={(user) => {
+            setCurrentUser(user);
+            setIsUnlocked(true);
+            if (user?.rol === 'vendedor' && (activeTab === 'alquiler' || activeTab === 'semanal')) {
+              setActiveTab('cajero');
+            }
+          }}
+          theme={theme}
+        />
+        <PwaInstallBanner isUnlocked={isUnlocked} />
+      </>
     );
   }
 

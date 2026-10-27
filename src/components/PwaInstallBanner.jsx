@@ -2,16 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { Smartphone, Download, X, HelpCircle, Check, ArrowRight, Sparkles } from 'lucide-react';
+import { isSessionUnlocked } from '@/lib/storage';
 
-export default function PwaInstallBanner() {
+export default function PwaInstallBanner({ isUnlocked = false }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showManualGuide, setShowManualGuide] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [sessionActive, setSessionActive] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (isSessionUnlocked()) {
+      setSessionActive(true);
+      return;
+    }
 
     // Detectar si ya está corriendo como app instalada (PWA standalone)
     const checkStandalone = () => {
@@ -90,8 +96,8 @@ export default function PwaInstallBanner() {
     }
   };
 
-  // Si ya está abierta como PWA instalada, no mostramos nada
-  if (isStandalone || isInstalled) return null;
+  // Si ya inició sesión o está abierta como PWA instalada, no mostramos nada
+  if (isUnlocked || sessionActive || isStandalone || isInstalled) return null;
 
   return (
     <>
