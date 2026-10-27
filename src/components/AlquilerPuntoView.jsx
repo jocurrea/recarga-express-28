@@ -167,8 +167,10 @@ export default function AlquilerPuntoView({
             <span className={`text-[11px] font-mono block mt-1 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
               ≈ {formatUsd(tasaBcv > 0 ? totalAPagar / tasaBcv : 0)} USD
             </span>
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 block mt-0.5 font-bold flex items-center gap-1">
-              <Clock className="w-3 h-3 inline" /> {totalPendientes} pagos por transferir mañana
+            <span className={`text-[11px] block mt-1 font-bold flex items-center gap-1 ${
+              isLight ? 'text-amber-900 font-extrabold' : 'text-amber-300'
+            }`}>
+              <Clock className="w-3.5 h-3.5 inline text-amber-600 shrink-0" /> {totalPendientes} pagos por transferir mañana
             </span>
           </div>
 
@@ -445,21 +447,21 @@ export default function AlquilerPuntoView({
                     <td className="py-3 px-4 text-center font-sans">
                       <button
                         onClick={() => onToggleTransferido(item.id)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition cursor-pointer ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-xs ${
                           item.transferido
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-amber-600 hover:bg-amber-700 text-white'
                         }`}
                         title="Clic para cambiar estado de transferencia"
                       >
                         {item.transferido ? (
                           <>
-                            <CheckCircle2 className="w-3 h-3" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
                             <span>Transferido</span>
                           </>
                         ) : (
                           <>
-                            <Clock className="w-3 h-3" />
+                            <Clock className="w-3.5 h-3.5 text-white shrink-0" />
                             <span>Por transferir mañana</span>
                           </>
                         )}

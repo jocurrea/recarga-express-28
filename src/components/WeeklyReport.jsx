@@ -411,7 +411,7 @@ export default function WeeklyReport({
                     <td className="py-3 px-6 text-right text-blue-600 dark:text-blue-400 font-bold">
                       {row.totalPagoDirecto > 0 ? formatBs(row.totalPagoDirecto) : '-'}
                     </td>
-                    <td className="py-3 px-6 text-right text-amber-700 dark:text-amber-300 font-bold">
+                    <td className={`py-3 px-6 text-right font-bold ${isLight ? 'text-amber-900 font-bold' : 'text-amber-300'}`}>
                       {row.totalGanancia > 0 ? formatUsd(usd) : '-'}
                     </td>
                   </tr>
@@ -425,11 +425,15 @@ export default function WeeklyReport({
                 ? 'bg-slate-50 border-slate-200'
                 : 'bg-slate-900 border-slate-800'
             }`}>
-              <tr className="bg-amber-500/10 border-b border-amber-500/20">
-                <td className="py-3.5 px-6 font-sans font-black text-amber-700 dark:text-amber-300 uppercase text-xs">
+              <tr className={isLight ? 'bg-amber-100/70 border-b border-amber-300' : 'bg-amber-500/10 border-b border-amber-500/20'}>
+                <td className={`py-3.5 px-6 font-sans font-black uppercase text-xs ${
+                  isLight ? 'text-amber-950' : 'text-amber-300'
+                }`}>
                   TOTAL GANANCIA SEMANAL
                 </td>
-                <td className="py-3.5 px-6 text-right font-black text-xl text-amber-700 dark:text-amber-300">
+                <td className={`py-3.5 px-6 text-right font-black text-xl ${
+                  isLight ? 'text-amber-950' : 'text-amber-300'
+                }`}>
                   {formatBs(weekData.grandTotalBs)}
                 </td>
                 <td className="py-3.5 px-6 text-right font-bold text-emerald-600 dark:text-emerald-400">
@@ -438,7 +442,9 @@ export default function WeeklyReport({
                 <td className="py-3.5 px-6 text-right font-bold text-blue-600 dark:text-blue-400">
                   {formatBs(weekData.grandTotalPagoDirecto)}
                 </td>
-                <td className="py-3.5 px-6 text-right text-amber-700 dark:text-amber-300 font-bold">
+                <td className={`py-3.5 px-6 text-right font-bold ${
+                  isLight ? 'text-amber-950 font-black' : 'text-amber-300'
+                }`}>
                   {formatUsd(weekData.grandTotalUsd)}
                 </td>
               </tr>
