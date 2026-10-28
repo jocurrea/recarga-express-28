@@ -51,7 +51,13 @@ CREATE TABLE IF NOT EXISTS payall_manual_ganancias (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Tabla de Configuración y Tarifas
+-- 4. Tabla de Configuración, Tarifas y Tasas BCV por Día
+-- Claves utilizadas:
+--   'config'             -> Ajustes generales (comisiones bancarias, etc.)
+--   'tarifas'            -> Tarifas personalizadas por operadora
+--   'security_pin'       -> PIN del dueño
+--   'security_users'     -> Configuración de roles y usuarios
+--   'tasas_diarias_bcv'  -> Historial de tasa oficial BCV por día {"2026-10-27": 888.12, ...}
 CREATE TABLE IF NOT EXISTS configuracion (
   clave TEXT PRIMARY KEY,
   valor JSONB NOT NULL,

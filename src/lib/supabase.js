@@ -220,11 +220,13 @@ export async function fetchConfigFromSupabase() {
     const tarifasRow = data.find(r => r.clave === 'tarifas');
     const pinRow = data.find(r => r.clave === 'security_pin');
     const usersRow = data.find(r => r.clave === 'security_users');
+    const tasasRow = data.find(r => r.clave === 'tasas_diarias_bcv');
     return {
       config: configRow ? configRow.valor : null,
       tarifas: tarifasRow ? tarifasRow.valor : null,
       securityPin: pinRow ? pinRow.valor : null,
-      securityUsers: usersRow ? usersRow.valor : null
+      securityUsers: usersRow ? usersRow.valor : null,
+      tasasDiarias: tasasRow ? tasasRow.valor : null
     };
   } catch {
     return null;

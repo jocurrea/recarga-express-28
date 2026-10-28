@@ -11,7 +11,15 @@ import PayallManualCard from '@/components/PayallManualCard';
 import SettingsModal from '@/components/SettingsModal';
 import AuthLockScreen from '@/components/AuthLockScreen';
 import PwaInstallBanner from '@/components/PwaInstallBanner';
-import { getTasaBcv, saveManualBcvRate, getManualBcvRate } from '@/lib/bcv';
+import {
+  getTasaBcv,
+  saveManualBcvRate,
+  getManualBcvRate,
+  getDailyBcvRates,
+  saveDailyBcvRates,
+  getBcvRateForDate,
+  saveBcvRateForDate
+} from '@/lib/bcv';
 import { calculateDailySummary, formatBs, formatUsd } from '@/lib/calculator';
 import { DEFAULT_CONFIG } from '@/lib/constants';
 import {
@@ -55,7 +63,7 @@ export default function Home() {
   const [allAlquiler, setAllAlquiler] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [tarifas, setTarifas] = useState(INITIAL_TARIFAS);
-  const [tasaBcv, setTasaBcv] = useState(887.30);
+  const [dailyRates, setDailyRates] = useState({});
   const [loadingBcv, setLoadingBcv] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
@@ -65,6 +73,11 @@ export default function Home() {
 
   const isVendedor = currentUser?.rol === 'vendedor';
 
+  // Tasa BCV calculada según el día seleccionado actual (mantiene la tasa histórica por día)
+  const tasaBcv = useMemo(() => {
+    return getBcvRateForDate(selectedDate, dailyRates);
+  }, [selectedDate, dailyRates]);
+
   // Inicialización y carga de datos
   const loadInitialData = useCallback(() => {
     // 1. Carga inmediata local (0 latencia)
@@ -73,7 +86,9 @@ export default function Home() {
     setAllAlquiler(getAllAlquilerPunto());
     setConfig(getConfig());
     setTarifas(getTarifas());
-    setTasaBcv(getManualBcvRate());
+    const localDailyRates = getDailyBcvRates();
+    setDailyRates(localDailyRates);
+
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('recargas_theme_mode');
       if (savedTheme === 'light' || savedTheme === 'dark') {
@@ -123,6 +138,11 @@ export default function Home() {
         if (res?.securityUsers) {
           saveUsersConfig(res.securityUsers);
         }
+        if (res?.tasasDiarias) {
+          const mergedRates = { ...res.tasasDiarias, ...getDailyBcvRates() };
+          saveDailyBcvRates(mergedRates);
+          setDailyRates(mergedRates);
+        }
       });
     }
   }, []);
@@ -154,7 +174,11 @@ export default function Home() {
     try {
       const data = await getTasaBcv(force);
       if (data?.tasa && Number(data.tasa) > 0) {
-        setTasaBcv(Number(data.tasa));
+        const num = Number(data.tasa);
+        const today = getTodayDateStr();
+        // Guardar la tasa del día actual
+        saveBcvRateForDate(today, num);
+        setDailyRates((prev) => ({ ...prev, [today]: num }));
         return data;
       }
     } finally {
@@ -162,9 +186,10 @@ export default function Home() {
     }
   }, []);
 
-  const handleSaveManualBcv = (rate) => {
-    saveManualBcvRate(rate);
-    setTasaBcv(rate);
+  const handleSaveManualBcv = (rate, targetDate = null) => {
+    const dateToSave = targetDate || selectedDate || getTodayDateStr();
+    saveBcvRateForDate(dateToSave, rate);
+    setDailyRates((prev) => ({ ...prev, [dateToSave]: rate }));
   };
 
   const handleTogglePosRent = () => {
@@ -317,6 +342,8 @@ export default function Home() {
         alquilerCount={dayAlquiler.length}
         onLock={handleLockScreen}
         currentUser={currentUser}
+        dailyRates={dailyRates}
+        allTransactions={allTransactions}
       />
 
       {/* Contenido Principal */}
@@ -496,6 +523,7 @@ export default function Home() {
           <WeeklyReport
             allTransactions={allTransactions}
             tasaBcv={tasaBcv}
+            dailyRates={dailyRates}
             config={config}
             theme={theme}
             onToggleEstadoPago={handleToggleEstadoPago}

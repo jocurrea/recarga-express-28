@@ -14,9 +14,11 @@ import {
   Moon,
   Lock,
   User,
-  Shield
+  Shield,
+  RotateCcw
 } from 'lucide-react';
 import { formatBs } from '@/lib/calculator';
+import CalendarModal from './CalendarModal';
 
 export default function Navbar({
   activeTab,
@@ -32,7 +34,9 @@ export default function Navbar({
   onToggleTheme,
   alquilerCount = 0,
   onLock,
-  currentUser = null
+  currentUser = null,
+  dailyRates = {},
+  allTransactions = []
 }) {
   const isLight = theme === 'light';
   const isAdmin = currentUser ? currentUser.rol === 'admin' : true;
@@ -40,6 +44,7 @@ export default function Navbar({
   const [isEditingBcv, setIsEditingBcv] = useState(false);
   const [manualBcvInput, setManualBcvInput] = useState('');
   const [bcvFeedback, setBcvFeedback] = useState('');
+  const [isAlmanaqueOpen, setIsAlmanaqueOpen] = useState(false);
 
   const handleRefreshClick = async () => {
     if (loadingBcv) return;
@@ -57,32 +62,40 @@ export default function Navbar({
     }
   };
 
+  const getTodayStr = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
   const isToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    return selectedDate === today;
+    return selectedDate === getTodayStr();
+  };
+
+  const shiftDate = (dateStr, deltaDays) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d + deltaDays);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   };
 
   const handlePrevDay = () => {
-    const d = new Date(selectedDate + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(shiftDate(selectedDate, -1));
   };
 
   const handleNextDay = () => {
-    const d = new Date(selectedDate + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(shiftDate(selectedDate, 1));
   };
 
   const handleSetToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
+    setSelectedDate(getTodayStr());
   };
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-');
-    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('es-VE', {
       weekday: 'short',
       day: 'numeric',
@@ -99,8 +112,8 @@ export default function Navbar({
     if (e) e.preventDefault();
     const parsed = parseFloat(manualBcvInput.replace(',', '.'));
     if (parsed > 0 && onSaveManualBcv) {
-      onSaveManualBcv(parsed);
-      setBcvFeedback(`✓ Guardado: ${formatBs(parsed)}`);
+      onSaveManualBcv(parsed, selectedDate);
+      setBcvFeedback(`✓ Guardado (${formatDateDisplay(selectedDate)}): ${formatBs(parsed)}`);
       setTimeout(() => setBcvFeedback(''), 3500);
     }
     setIsEditingBcv(false);
@@ -137,7 +150,9 @@ export default function Navbar({
           }`}>
             {isEditingBcv ? (
               <form onSubmit={handleConfirmBcv} className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-orange-600">BCV:</span>
+                <span className="text-[11px] font-bold text-orange-600">
+                  BCV ({formatDateDisplay(selectedDate)}):
+                </span>
                 <input
                   id="manual-bcv-input"
                   type="number"
@@ -151,7 +166,7 @@ export default function Navbar({
                 />
                 <button
                   type="submit"
-                  title="Guardar tasa BCV"
+                  title={`Guardar tasa para el día ${selectedDate}`}
                   className="p-1 rounded bg-orange-600 hover:bg-orange-700 text-white transition cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
@@ -170,7 +185,7 @@ export default function Navbar({
                 <div
                   onClick={handleStartEditBcv}
                   className="flex items-center gap-1.5 cursor-pointer hover:opacity-85 transition group"
-                  title="Clic para editar tasa BCV manualmente"
+                  title={`Tasa oficial BCV del día (${selectedDate}). Clic para editarla.`}
                 >
                   <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -181,6 +196,11 @@ export default function Navbar({
                   }`}>
                     {formatBs(tasaBcv)}
                   </span>
+                  {!isToday() && (
+                    <span className="text-[9px] px-1 py-0.2 rounded font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      {formatDateDisplay(selectedDate)}
+                    </span>
+                  )}
                   <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-orange-500 transition" />
                 </div>
                 <button
@@ -207,9 +227,9 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Date Selector, Theme Switcher & Settings */}
+        {/* Date Selector con Almanaque, Theme Switcher & Settings */}
         <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5">
-          {/* Day Navigator */}
+          {/* Day Navigator con Botón de Almanaque */}
           <div className={`flex items-center rounded-xl p-0.5 text-xs border ${
             isLight
               ? 'bg-slate-50 border-slate-200'
@@ -226,19 +246,27 @@ export default function Navbar({
               <ChevronLeft className="w-4 h-4" />
             </button>
 
+            {/* Botón Central que abre el Almanaque Interactivo */}
             <button
               id="date-picker-btn"
-              onClick={handleSetToday}
-              className={`px-2.5 py-1 rounded-lg font-bold transition capitalize text-xs ${
+              type="button"
+              onClick={() => setIsAlmanaqueOpen(true)}
+              className={`px-2.5 py-1 rounded-lg font-bold transition capitalize text-xs flex items-center gap-1.5 cursor-pointer ${
                 isToday()
                   ? isLight
-                    ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                    : 'bg-orange-950/40 text-orange-300 border border-orange-800'
-                  : isLight ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 hover:bg-slate-800'
+                    ? 'bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100'
+                    : 'bg-orange-950/40 text-orange-300 border border-orange-800 hover:bg-orange-900/50'
+                  : isLight
+                  ? 'text-slate-700 hover:bg-slate-200'
+                  : 'text-slate-300 hover:bg-slate-800'
               }`}
+              title="Abrir almanaque para buscar cualquier día del mes"
             >
-              {isToday() ? 'Hoy: ' : ''}
-              {formatDateDisplay(selectedDate)}
+              <Calendar className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+              <span>
+                {isToday() ? 'Hoy: ' : ''}
+                {formatDateDisplay(selectedDate)}
+              </span>
             </button>
 
             <button
@@ -255,6 +283,23 @@ export default function Navbar({
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Botón rápido para regresar a 'Hoy' si está navegando en el pasado */}
+          {!isToday() && (
+            <button
+              type="button"
+              onClick={handleSetToday}
+              className={`px-2 py-1.5 rounded-xl border text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                isLight
+                  ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100'
+                  : 'bg-orange-950/40 border-orange-800/60 text-orange-300 hover:bg-orange-900/60'
+              }`}
+              title="Volver al día de hoy inmediatamente"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Hoy</span>
+            </button>
+          )}
 
           {/* Botón selector de Tema: Blanco (Claro) vs Oscuro */}
           <button
@@ -411,6 +456,17 @@ export default function Navbar({
           )}
         </div>
       </div>
+
+      {/* Almanaque Modal Desplegable */}
+      <CalendarModal
+        isOpen={isAlmanaqueOpen}
+        onClose={() => setIsAlmanaqueOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        dailyRates={dailyRates}
+        allTransactions={allTransactions}
+        theme={theme}
+      />
     </header>
   );
 }

@@ -10,6 +10,7 @@ import ReportPdfModal from './ReportPdfModal';
 export default function WeeklyReport({
   allTransactions = [],
   tasaBcv = 0,
+  dailyRates = {},
   config,
   theme = 'dark',
   onToggleEstadoPago
@@ -62,12 +63,13 @@ export default function WeeklyReport({
     };
   }, [weekOffset, mounted]);
 
-  // Agrupar transacciones por día de la semana
+  // Agrupar transacciones por día de la semana con soporte para tasas diarias
   const weekData = useMemo(() => {
     let grandTotalBs = 0;
     let grandTotalPayall = 0;
     let grandTotalPagoDirecto = 0;
     let grandTotalRecargas = 0;
+    let grandTotalUsd = 0;
 
     const rows = daysOfWeek.map((day) => {
       const txs = allTransactions.filter((t) => t.fecha === day.fechaIso);
@@ -92,16 +94,22 @@ export default function WeeklyReport({
       grandTotalPagoDirecto += dayPagoDirecto;
       grandTotalRecargas += txs.length;
 
+      const dayRate = (dailyRates && Number(dailyRates[day.fechaIso]) > 0)
+        ? Number(dailyRates[day.fechaIso])
+        : Number(tasaBcv || 887.30);
+      const dayUsd = dayRate > 0 ? dayTotalBs / dayRate : 0;
+      grandTotalUsd += dayUsd;
+
       return {
         ...day,
         totalGanancia: dayTotalBs,
         totalPayall: dayPayall,
         totalPagoDirecto: dayPagoDirecto,
-        count: txs.length
+        count: txs.length,
+        dayRate,
+        dayUsd
       };
     });
-
-    const grandTotalUsd = tasaBcv > 0 ? grandTotalBs / tasaBcv : 0;
 
     return {
       rows,
@@ -111,7 +119,7 @@ export default function WeeklyReport({
       grandTotalUsd,
       grandTotalRecargas
     };
-  }, [daysOfWeek, allTransactions, tasaBcv]);
+  }, [daysOfWeek, allTransactions, tasaBcv, dailyRates]);
 
   // Rango de fechas a mostrar en título
   const rangeTitle = useMemo(() => {
@@ -387,7 +395,7 @@ export default function WeeklyReport({
               isLight ? 'divide-slate-100' : 'divide-slate-800'
             }`}>
               {weekData.rows.map((row) => {
-                const usd = tasaBcv > 0 ? row.totalGanancia / tasaBcv : 0;
+                const usd = row.dayUsd ?? (row.dayRate > 0 ? row.totalGanancia / row.dayRate : 0);
                 return (
                   <tr
                     key={row.fechaIso}
@@ -398,7 +406,17 @@ export default function WeeklyReport({
                     <td className={`py-3 px-6 font-sans font-bold ${
                       isLight ? 'text-slate-800' : 'text-slate-200'
                     }`}>
-                      {row.nombre}
+                      <div className="flex items-center gap-2">
+                        <span>{row.nombre}</span>
+                        {row.dayRate > 0 && (
+                          <span
+                            className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            title={`Tasa oficial de este día: ${formatBs(row.dayRate)}`}
+                          >
+                            {formatBs(row.dayRate)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={`py-3 px-6 text-right font-black ${
                       isLight ? 'text-slate-900' : 'text-white'
