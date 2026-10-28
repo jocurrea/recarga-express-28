@@ -89,6 +89,12 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     gananciaNetaBs: 0,
     gananciaNetaUsd: 0,
     gananciaBrutaUsd: 0,
+    gananciaRecargasBs: 0,
+    gananciaRecargasUsd: 0,
+    gananciaAlquilerBs: 0,
+    gananciaAlquilerUsd: 0,
+    gananciaBrutaConsolidada: 0,
+    gananciaBrutaConsolidadaUsd: 0,
     tasaBcv: Number(tasaBcv || 887.30),
     deducirAlquilerPunto: Boolean(config.deducirAlquilerPunto)
   };
@@ -172,13 +178,27 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
 
   // Ganancia Bruta Consolidada = Ganancia Recargas + Ganancia por Alquiler de Punto (10%)
   const gananciaBrutaConsolidada = summary.gananciaBruta + summary.totalAlquilerGananciaBs;
+  summary.gananciaRecargasBs = summary.gananciaBruta;
+  summary.gananciaAlquilerBs = summary.totalAlquilerGananciaBs;
+  summary.gananciaBrutaConsolidada = gananciaBrutaConsolidada;
 
   // Ganancia neta real en el bolsillo = Ganancia bruta consolidada - Todas las deducciones
   summary.gananciaNetaBs = gananciaBrutaConsolidada - summary.totalDeduccionesBs;
 
   if (summary.tasaBcv > 0) {
+    summary.gananciaRecargasUsd = summary.gananciaRecargasBs / summary.tasaBcv;
+    summary.gananciaAlquilerUsd = summary.gananciaAlquilerBs / summary.tasaBcv;
+    summary.gananciaBrutaConsolidadaUsd = gananciaBrutaConsolidada / summary.tasaBcv;
+    // Si no hay ganancia por alquiler, gananciaBrutaUsd equivale solo a recargas.
+    // Si hay alquiler, equivale al total consolidado.
     summary.gananciaBrutaUsd = gananciaBrutaConsolidada / summary.tasaBcv;
     summary.gananciaNetaUsd = summary.gananciaNetaBs / summary.tasaBcv;
+  } else {
+    summary.gananciaRecargasUsd = 0;
+    summary.gananciaAlquilerUsd = 0;
+    summary.gananciaBrutaConsolidadaUsd = 0;
+    summary.gananciaBrutaUsd = 0;
+    summary.gananciaNetaUsd = 0;
   }
 
   return summary;

@@ -43,7 +43,13 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
     totalAlquilerPagarBs = 0,
     totalPuntoLoteGeneral = 0,
     countAlquilerComerciantes = 0,
-    countAlquilerTickets = 0
+    countAlquilerTickets = 0,
+    gananciaRecargasBs = 0,
+    gananciaRecargasUsd = 0,
+    gananciaAlquilerBs = 0,
+    gananciaAlquilerUsd = 0,
+    gananciaBrutaConsolidada = 0,
+    gananciaBrutaConsolidadaUsd = 0
   } = summary;
 
   const comisionPuntoPct = Number(config?.comisionPuntoPorcentaje ?? 0.75);
@@ -181,28 +187,50 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              <span className={`w-2 h-2 rounded-full ${totalAlquilerGananciaBs > 0 ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
               <span className={`text-xs font-bold uppercase tracking-wider ${
                 isLight ? 'text-slate-600' : 'text-slate-400'
               }`}>
-                Ganancia en Comisiones del Día (Bruta)
+                {totalAlquilerGananciaBs > 0
+                  ? 'Ganancia Total del Día (Bruta Consolidada)'
+                  : 'Ganancia en Comisiones del Día (Bruta)'}
               </span>
             </div>
             <div className={`text-3xl sm:text-4xl md:text-5xl font-black tracking-tight font-mono ${
               isLight ? 'text-emerald-700' : 'text-emerald-400'
             }`}>
-              +{formatBs(gananciaBruta)}
+              +{formatBs(totalAlquilerGananciaBs > 0 ? (gananciaBrutaConsolidada || gananciaBruta + totalAlquilerGananciaBs) : gananciaBruta)}
             </div>
-            <p className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              {totalRecargas === 0
-                ? 'Sin operaciones registradas hoy'
-                : `Acumulado en ${totalRecargas} recargas procesadas`}
-            </p>
+
+            {totalAlquilerGananciaBs > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                  isLight ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                }`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Recargas ({totalRecargas}): <span className="font-mono">+{formatBs(gananciaBruta)}</span>
+                  <span className="opacity-75 font-mono">({formatUsd(gananciaRecargasUsd || (tasaBcv > 0 ? gananciaBruta / tasaBcv : 0))})</span>
+                </span>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                  isLight ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-orange-950/60 text-orange-300 border-orange-800'
+                }`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                  Alquiler Punto: <span className="font-mono">+{formatBs(totalAlquilerGananciaBs)}</span>
+                  <span className="opacity-75 font-mono">({formatUsd(gananciaAlquilerUsd || (tasaBcv > 0 ? totalAlquilerGananciaBs / tasaBcv : 0))})</span>
+                </span>
+              </div>
+            ) : (
+              <p className={`text-xs mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                {totalRecargas === 0
+                  ? 'Sin operaciones registradas hoy'
+                  : `Acumulado en ${totalRecargas} recargas procesadas`}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Equivalente USD */}
-            <div className={`px-4 py-3 rounded-xl border min-w-[140px] ${
+            <div className={`px-4 py-3 rounded-xl border min-w-[150px] ${
               isLight
                 ? 'bg-slate-50 border-slate-200'
                 : 'bg-slate-900/90 border-slate-800'
@@ -215,11 +243,20 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
               <div className={`text-2xl font-black font-mono ${
                 isLight ? 'text-slate-900' : 'text-amber-300'
               }`}>
-                {formatUsd(gananciaBrutaUsd || 0)}
+                {formatUsd(
+                  totalAlquilerGananciaBs > 0
+                    ? (gananciaBrutaConsolidadaUsd || gananciaBrutaUsd || 0)
+                    : (gananciaRecargasUsd || (tasaBcv > 0 ? gananciaBruta / tasaBcv : 0))
+                )}
               </div>
-              <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Tasa: {formatBs(tasaBcv)}
-              </span>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                <div>Tasa: {formatBs(tasaBcv)}</div>
+                {totalAlquilerGananciaBs > 0 && (
+                  <div className="text-[9px] opacity-80 font-mono mt-0.5">
+                    {formatUsd(gananciaRecargasUsd || (tasaBcv > 0 ? gananciaBruta / tasaBcv : 0))} rec. + {formatUsd(gananciaAlquilerUsd || (tasaBcv > 0 ? totalAlquilerGananciaBs / tasaBcv : 0))} alq.
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Total Operaciones */}
@@ -636,7 +673,7 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
               </span>
             </div>
             <span className={`text-[10px] block mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Bruta ({formatBs(gananciaBruta)}) - Deducciones ({formatBs(totalDeduccionesBs)})
+              Bruta ({formatBs(totalAlquilerGananciaBs > 0 ? (gananciaBrutaConsolidada || gananciaBruta + totalAlquilerGananciaBs) : gananciaBruta)}) - Deducciones ({formatBs(totalDeduccionesBs)})
             </span>
           </div>
         </div>
