@@ -2,13 +2,14 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { formatBs, formatUsd } from '@/lib/calculator';
+import { formatBs, formatUsd, calculateDailySummary } from '@/lib/calculator';
 import { exportWeeklyReport } from '@/lib/excelExport';
-import { ChevronLeft, ChevronRight, Sparkles, Calendar, DollarSign, Download, FileText, Clock, CheckCircle2, User, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Calendar, DollarSign, Download, FileText, Clock, CheckCircle2, User, X, Wallet, TrendingUp } from 'lucide-react';
 import ReportPdfModal from './ReportPdfModal';
 
 export default function WeeklyReport({
   allTransactions = [],
+  allAlquiler = [],
   tasaBcv = 0,
   dailyRates = {},
   config,
@@ -21,6 +22,7 @@ export default function WeeklyReport({
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [payPendingTx, setPayPendingTx] = useState(null);
   const [payPendingMethod, setPayPendingMethod] = useState('efectivo');
+  const [viewMode, setViewMode] = useState('neta'); // 'neta' (por defecto: Ganancia Neta Real diaria) o 'bruta'
 
   useEffect(() => {
     setMounted(true);
@@ -63,51 +65,69 @@ export default function WeeklyReport({
     };
   }, [weekOffset, mounted]);
 
-  // Agrupar transacciones por día de la semana con soporte para tasas diarias
+  // Agrupar transacciones por día de la semana con soporte para tasas diarias y Ganancia Neta Real
   const weekData = useMemo(() => {
     let grandTotalBs = 0;
     let grandTotalPayall = 0;
     let grandTotalPagoDirecto = 0;
     let grandTotalRecargas = 0;
     let grandTotalUsd = 0;
+    let grandTotalNetaBs = 0;
+    let grandTotalNetaUsd = 0;
+    let grandTotalAlquilerGanancia = 0;
+    let grandTotalDeduccionesBs = 0;
+    let grandTotalConsolidadaBs = 0;
 
     const rows = daysOfWeek.map((day) => {
       const txs = allTransactions.filter((t) => t.fecha === day.fechaIso);
-      let dayTotalBs = 0;
-      let dayPayall = 0;
-      let dayPagoDirecto = 0;
+      const alqs = (allAlquiler || []).filter((a) => a.fecha === day.fechaIso);
 
-      txs.forEach((tx) => {
-        const ganancia = Number(tx.montoCobrado || 0) - Number(tx.montoRecarga || 0);
-        dayTotalBs += ganancia;
+      const dayRate = (dailyRates && Number(dailyRates[day.fechaIso]) > 0)
+        ? Number(dailyRates[day.fechaIso])
+        : Number(tasaBcv || 887.30);
 
-        const plat = (tx.plataforma || 'payall').toLowerCase();
-        if (plat === 'pagodirecto') {
-          dayPagoDirecto += ganancia;
-        } else {
-          dayPayall += ganancia;
-        }
-      });
+      // Usamos calculateDailySummary para obtener arqueo, comisiones y deducciones reales del día
+      const daySummary = calculateDailySummary(txs, config || {}, dayRate, alqs);
+
+      const hasActivity = txs.length > 0 || alqs.length > 0;
+
+      const dayTotalBs = daySummary.gananciaBruta;
+      const dayPayall = daySummary.gananciaPayall;
+      const dayPagoDirecto = daySummary.gananciaPagoDirecto;
+      const dayAlquilerGananciaBs = daySummary.totalAlquilerGananciaBs;
+      const dayDeduccionesBs = daySummary.totalDeduccionesBs;
+      const dayNetaBs = daySummary.gananciaNetaBs;
+      const dayNetaUsd = daySummary.gananciaNetaUsd;
+      const dayBrutaUsd = dayRate > 0 ? (daySummary.gananciaBrutaConsolidada || dayTotalBs) / dayRate : 0;
+      const dayRecargasUsd = dayRate > 0 ? dayTotalBs / dayRate : 0;
 
       grandTotalBs += dayTotalBs;
       grandTotalPayall += dayPayall;
       grandTotalPagoDirecto += dayPagoDirecto;
       grandTotalRecargas += txs.length;
-
-      const dayRate = (dailyRates && Number(dailyRates[day.fechaIso]) > 0)
-        ? Number(dailyRates[day.fechaIso])
-        : Number(tasaBcv || 887.30);
-      const dayUsd = dayRate > 0 ? dayTotalBs / dayRate : 0;
-      grandTotalUsd += dayUsd;
+      grandTotalUsd += dayRecargasUsd;
+      grandTotalNetaBs += dayNetaBs;
+      grandTotalNetaUsd += dayNetaUsd;
+      grandTotalAlquilerGanancia += dayAlquilerGananciaBs;
+      grandTotalDeduccionesBs += dayDeduccionesBs;
+      grandTotalConsolidadaBs += (daySummary.gananciaBrutaConsolidada || dayTotalBs);
 
       return {
         ...day,
+        hasActivity,
         totalGanancia: dayTotalBs,
         totalPayall: dayPayall,
         totalPagoDirecto: dayPagoDirecto,
+        totalAlquilerGananciaBs: dayAlquilerGananciaBs,
+        totalDeduccionesBs: dayDeduccionesBs,
+        gananciaNetaBs: dayNetaBs,
+        gananciaNetaUsd: dayNetaUsd,
         count: txs.length,
         dayRate,
-        dayUsd
+        dayUsd: dayNetaUsd, // Por solicitud del usuario: la columna refleja la Ganancia Neta Real diaria
+        dayBrutaUsd,
+        dayRecargasUsd,
+        summary: daySummary
       };
     });
 
@@ -117,9 +137,14 @@ export default function WeeklyReport({
       grandTotalPayall,
       grandTotalPagoDirecto,
       grandTotalUsd,
-      grandTotalRecargas
+      grandTotalRecargas,
+      grandTotalNetaBs,
+      grandTotalNetaUsd,
+      grandTotalAlquilerGanancia,
+      grandTotalDeduccionesBs,
+      grandTotalConsolidadaBs
     };
-  }, [daysOfWeek, allTransactions, tasaBcv, dailyRates]);
+  }, [daysOfWeek, allTransactions, allAlquiler, tasaBcv, dailyRates, config]);
 
   // Rango de fechas a mostrar en título
   const rangeTitle = useMemo(() => {
@@ -361,19 +386,63 @@ export default function WeeklyReport({
           ? 'bg-white border-slate-200'
           : 'bg-[#0f172a] border-slate-800'
       }`}>
-        {/* Cabecera espiritual de bendición */}
-        <div className={`px-5 py-3 border-b flex items-center justify-between ${
+        {/* Cabecera espiritual de bendición con Selector de Modo Neta Real vs Bruta */}
+        <div className={`px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 ${
           isLight
             ? 'bg-slate-50 border-slate-200 text-slate-800'
             : 'bg-slate-900 border-slate-800 text-slate-100'
         }`}>
-          <span className="text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-            DIOS ES NUESTRO PROVEEDOR
-          </span>
-          <span className={`text-xs font-semibold font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            {weekData.grandTotalRecargas} Recargas esta semana
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              DIOS ES NUESTRO PROVEEDOR
+            </span>
+            <span className={`text-xs font-semibold font-mono px-2 py-0.5 rounded-md border ${
+              isLight ? 'bg-slate-200/60 text-slate-700 border-slate-300' : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}>
+              {weekData.grandTotalRecargas} Recargas esta semana
+            </span>
+          </div>
+
+          {/* Toggle entre Ganancia Neta Real (En Bolsillo) y Ganancia Bruta */}
+          <div className={`flex items-center p-0.5 rounded-lg border text-xs font-bold ${
+            isLight ? 'bg-slate-200/70 border-slate-300' : 'bg-slate-950 border-slate-800'
+          }`}>
+            <button
+              type="button"
+              onClick={() => setViewMode('neta')}
+              className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'neta'
+                  ? isLight
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-500 text-slate-950 shadow-xs'
+                  : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-400 hover:text-white'
+              }`}
+              title="Ver Ganancia Neta Real tras descontar comisiones bancarias y alquiler de punto"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>Ganancia Neta Real (Diaria)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('bruta')}
+              className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'bruta'
+                  ? isLight
+                    ? 'bg-slate-800 text-white shadow-xs'
+                    : 'bg-slate-700 text-white shadow-xs'
+                  : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-400 hover:text-white'
+              }`}
+              title="Ver Ganancia Bruta total de recargas"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Ganancia Bruta</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -388,14 +457,23 @@ export default function WeeklyReport({
                 <th className="py-3 px-5 text-right">Bolívares (Bs.)</th>
                 <th className="py-3 px-5 text-right">Payall (Bs.)</th>
                 <th className="py-3 px-5 text-right">PagoDirecto (Bs.)</th>
-                <th className="py-3 px-5 text-right">Equiv. $ BCV</th>
+                <th className="py-3 px-5 text-right">
+                  {viewMode === 'neta' ? (
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Equiv. $ BCV (Neta Real)
+                    </span>
+                  ) : (
+                    <span>Equiv. $ BCV (Bruta)</span>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody className={`divide-y font-mono ${
               isLight ? 'divide-slate-100' : 'divide-slate-800'
             }`}>
               {weekData.rows.map((row) => {
-                const usd = row.dayUsd ?? (row.dayRate > 0 ? row.totalGanancia / row.dayRate : 0);
+                const isNeta = viewMode === 'neta';
+                const displayUsd = isNeta ? row.gananciaNetaUsd : row.dayBrutaUsd;
                 return (
                   <tr
                     key={row.fechaIso}
@@ -421,7 +499,18 @@ export default function WeeklyReport({
                     <td className={`py-3 px-6 text-right font-black ${
                       isLight ? 'text-slate-900' : 'text-white'
                     }`}>
-                      {row.totalGanancia > 0 ? formatBs(row.totalGanancia) : '-'}
+                      {row.hasActivity ? (
+                        <div>
+                          <span>{formatBs(row.totalGanancia)}</span>
+                          {row.totalAlquilerGananciaBs > 0 && (
+                            <span className="block text-[10px] font-normal text-orange-600 dark:text-orange-400 font-mono">
+                              +{formatBs(row.totalAlquilerGananciaBs)} alq.
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td className="py-3 px-6 text-right text-emerald-600 dark:text-emerald-400 font-bold">
                       {row.totalPayall > 0 ? formatBs(row.totalPayall) : '-'}
@@ -429,8 +518,27 @@ export default function WeeklyReport({
                     <td className="py-3 px-6 text-right text-blue-600 dark:text-blue-400 font-bold">
                       {row.totalPagoDirecto > 0 ? formatBs(row.totalPagoDirecto) : '-'}
                     </td>
-                    <td className={`py-3 px-6 text-right font-bold ${isLight ? 'text-amber-900 font-bold' : 'text-amber-300'}`}>
-                      {row.totalGanancia > 0 ? formatUsd(usd) : '-'}
+                    <td className="py-3 px-6 text-right">
+                      {row.hasActivity ? (
+                        <div>
+                          <span className={`font-mono text-sm font-black block ${
+                            isNeta
+                              ? (isLight ? 'text-emerald-700' : 'text-emerald-400')
+                              : (isLight ? 'text-amber-900 font-bold' : 'text-amber-300')
+                          }`}>
+                            {formatUsd(displayUsd)}
+                          </span>
+                          {isNeta && (
+                            <span className={`text-[10px] font-mono block ${
+                              isLight ? 'text-slate-500' : 'text-slate-400'
+                            }`}>
+                              Neto: {formatBs(row.gananciaNetaBs)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className={isLight ? 'text-slate-400' : 'text-slate-600'}>-</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -443,11 +551,12 @@ export default function WeeklyReport({
                 ? 'bg-slate-50 border-slate-200'
                 : 'bg-slate-900 border-slate-800'
             }`}>
+              {/* FILA 1: TOTAL GANANCIA BRUTA SEMANAL */}
               <tr className={isLight ? 'bg-amber-100/70 border-b border-amber-300' : 'bg-amber-500/10 border-b border-amber-500/20'}>
                 <td className={`py-3.5 px-6 font-sans font-black uppercase text-xs ${
                   isLight ? 'text-amber-950' : 'text-amber-300'
                 }`}>
-                  TOTAL GANANCIA SEMANAL
+                  TOTAL GANANCIA BRUTA SEMANAL
                 </td>
                 <td className={`py-3.5 px-6 text-right font-black text-xl ${
                   isLight ? 'text-amber-950' : 'text-amber-300'
@@ -467,15 +576,42 @@ export default function WeeklyReport({
                 </td>
               </tr>
 
+              {/* FILA 2: TOTAL GANANCIA NETA REAL (EN BOLSILLO) */}
+              <tr className={isLight ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-emerald-950/30 border-b border-emerald-800/40'}>
+                <td className={`py-3 px-6 font-sans font-black uppercase text-xs ${
+                  isLight ? 'text-emerald-900' : 'text-emerald-300'
+                }`}>
+                  TOTAL GANANCIA NETA REAL (EN BOLSILLO)
+                </td>
+                <td className={`py-3 px-6 text-right font-black text-xl ${
+                  isLight ? 'text-emerald-700' : 'text-emerald-400'
+                }`}>
+                  +{formatBs(weekData.grandTotalNetaBs)}
+                </td>
+                <td colSpan={2} className={`py-3 px-6 text-center text-xs font-sans ${
+                  isLight ? 'text-slate-600' : 'text-slate-400'
+                }`}>
+                  {weekData.grandTotalDeduccionesBs > 0
+                    ? `Deducciones de la semana: -${formatBs(weekData.grandTotalDeduccionesBs)}`
+                    : 'Sin deducciones aplicadas'}
+                </td>
+                <td className={`py-3 px-6 text-right font-black text-xl ${
+                  isLight ? 'text-emerald-700' : 'text-emerald-400'
+                }`}>
+                  +{formatUsd(weekData.grandTotalNetaUsd)}
+                </td>
+              </tr>
+
+              {/* FILA 3: TOTAL DESTACADO EN DÓLARES */}
               <tr className="bg-orange-500/10 border-b border-orange-500/20">
                 <td className="py-3 px-6 font-sans font-bold text-orange-600 dark:text-orange-300 uppercase text-xs">
-                  TOTAL DE LA SEMANA ($ BCV)
+                  {viewMode === 'neta' ? 'TOTAL NETA REAL SEMANAL ($ BCV)' : 'TOTAL BRUTA SEMANAL ($ BCV)'}
                 </td>
                 <td
                   colSpan={4}
-                  className="py-3 px-6 text-right font-black text-xl text-orange-600 dark:text-orange-300"
+                  className="py-3 px-6 text-right font-black text-2xl text-orange-600 dark:text-orange-300"
                 >
-                  {formatUsd(weekData.grandTotalUsd)}
+                  {formatUsd(viewMode === 'neta' ? weekData.grandTotalNetaUsd : weekData.grandTotalUsd)}
                 </td>
               </tr>
             </tfoot>

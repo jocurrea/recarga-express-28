@@ -73,22 +73,29 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
   const headers = [
     'Día',
     'Fecha',
-    'Ganancia Diaria (Bs)',
+    'Ganancia Recargas (Bs)',
     'Payall (Bs)',
     'PagoDirecto (Bs)',
-    'Equivalente $ BCV',
+    'Alquiler Punto (Bs)',
+    'Deducciones Bancarias (Bs)',
+    'Ganancia Neta Real (Bs)',
+    'Ganancia Neta Real ($ BCV)',
+    'Ganancia Bruta ($ BCV)',
     'Cantidad Recargas'
   ];
 
   const dataRows = (weekData.rows || []).map((r) => {
-    const usd = tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0;
     return [
       r.nombre,
       r.fechaIso,
       Number(r.totalGanancia || 0),
       Number(r.totalPayall || 0),
       Number(r.totalPagoDirecto || 0),
-      Number(usd.toFixed(2)),
+      Number(r.totalAlquilerGananciaBs || 0),
+      Number(r.totalDeduccionesBs || 0),
+      Number(r.gananciaNetaBs || r.totalGanancia || 0),
+      Number((r.gananciaNetaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0)).toFixed(2)),
+      Number((r.dayBrutaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0)).toFixed(2)),
       Number(r.count || 0)
     ];
   });
@@ -99,6 +106,10 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
     Number(weekData.grandTotalBs || 0),
     Number(weekData.grandTotalPayall || 0),
     Number(weekData.grandTotalPagoDirecto || 0),
+    Number(weekData.grandTotalAlquilerGanancia || 0),
+    Number(weekData.grandTotalDeduccionesBs || 0),
+    Number((weekData.grandTotalNetaBs ?? weekData.grandTotalBs) || 0),
+    Number((weekData.grandTotalNetaUsd ?? weekData.grandTotalUsd ?? 0).toFixed(2)),
     Number((weekData.grandTotalUsd || 0).toFixed(2)),
     Number(weekData.grandTotalRecargas || 0)
   ];
@@ -108,9 +119,13 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
     { wch: 14 },
     { wch: 14 },
     { wch: 22 },
+    { wch: 16 },
+    { wch: 16 },
     { wch: 18 },
-    { wch: 18 },
-    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 24 },
+    { wch: 22 },
     { wch: 18 }
   ];
 

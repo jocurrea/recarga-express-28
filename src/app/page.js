@@ -529,6 +529,7 @@ export default function Home() {
         {activeTab === 'semanal' && (
           <WeeklyReport
             allTransactions={allTransactions}
+            allAlquiler={allAlquiler}
             tasaBcv={tasaBcv}
             dailyRates={dailyRates}
             config={config}

@@ -369,13 +369,13 @@ export default function ReportPdfModal({
                       <th className="py-2 px-2 text-center">Recargas</th>
                       <th className="py-2 px-2 text-right">Payall</th>
                       <th className="py-2 px-2 text-right">PagoDirecto</th>
-                      <th className="py-2 px-2 text-right">Ganancia (Bs)</th>
-                      <th className="py-2 px-2 text-right">Equiv. $ BCV</th>
+                      <th className="py-2 px-2 text-right">Ganancia Recargas (Bs)</th>
+                      <th className="py-2 px-2 text-right">Equiv. $ BCV (Neta Real)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {weekData.rows.map((r, idx) => {
-                      const usd = tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0;
+                      const usd = r.gananciaNetaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0);
                       return (
                         <tr key={r.fechaIso} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                           <td className="py-2 px-2 font-bold font-sans">{r.nombre}</td>
@@ -384,7 +384,9 @@ export default function ReportPdfModal({
                           <td className="py-2 px-2 text-right">{formatBs(r.totalPayall)}</td>
                           <td className="py-2 px-2 text-right">{formatBs(r.totalPagoDirecto)}</td>
                           <td className="py-2 px-2 text-right font-bold text-emerald-700">+{formatBs(r.totalGanancia)}</td>
-                          <td className="py-2 px-2 text-right font-bold text-slate-800">{formatUsd(usd)}</td>
+                          <td className="py-2 px-2 text-right font-bold text-emerald-800">
+                            {r.hasActivity ? formatUsd(usd) : '-'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -396,7 +398,9 @@ export default function ReportPdfModal({
                       <td className="py-2 px-2 text-right">{formatBs(weekData.grandTotalPayall)}</td>
                       <td className="py-2 px-2 text-right">{formatBs(weekData.grandTotalPagoDirecto)}</td>
                       <td className="py-2 px-2 text-right text-emerald-800 font-black">+{formatBs(weekData.grandTotalBs)}</td>
-                      <td className="py-2 px-2 text-right text-slate-900 font-black">{formatUsd(weekData.grandTotalUsd)}</td>
+                      <td className="py-2 px-2 text-right text-emerald-900 font-black">
+                        {formatUsd(weekData.grandTotalNetaUsd ?? weekData.grandTotalUsd)}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
