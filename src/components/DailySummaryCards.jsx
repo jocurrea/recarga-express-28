@@ -504,7 +504,7 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          {/* Comisión Punto 0.75% */}
+          {/* Comisión Punto 0.75% (Calculada sobre el Lote Total del Punto) */}
           <div className={`p-3 rounded-lg border ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
           }`}>
@@ -521,8 +521,17 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
                 </span>
               )}
             </div>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-              {comisionPuntoPct}% sobre {formatBs(totalPunto)}
+            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              {totalAlquilerPasado > 0 ? (
+                <>
+                  <span className="font-semibold">{comisionPuntoPct}% sobre {formatBs(totalPuntoLoteGeneral || (totalPunto + totalAlquilerPasado))}</span>
+                  <span className="block text-[9px] text-slate-400 mt-0.5">
+                    Lote: Recargas ({formatBs(totalPunto)}) + Vecinos ({formatBs(totalAlquilerPasado)})
+                  </span>
+                </>
+              ) : (
+                <>{comisionPuntoPct}% sobre {formatBs(totalPunto)}</>
+              )}
             </span>
           </div>
 
@@ -543,32 +552,52 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
                 </span>
               )}
             </div>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-              {biopagoPct}% sobre {formatBs(totalBiopago)}
+            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              <span className="font-semibold">{biopagoPct}% sobre {formatBs(totalBiopago)}</span>
+              {tasaBcv > 0 && deduccionBiopagoBs > 0 && (
+                <span className="block text-[9px] text-slate-400 mt-0.5">
+                  Tasa del día: {formatBs(tasaBcv)}
+                </span>
+              )}
             </span>
           </div>
 
-          {/* Alquiler POS */}
-          <div className={`p-3 rounded-lg border ${
-            isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
-          }`}>
-            <span className={`block mb-1 text-[11px] font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              Alquiler Diario POS ({formatUsd(config.alquilerPuntoUsd || 1.777)}):
-            </span>
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className={`font-bold font-mono text-sm ${deducirAlquilerPunto ? 'text-rose-600' : 'text-slate-400'}`}>
-                {deducirAlquilerPunto ? `-${formatBs(deduccionPuntoBs)}` : '0,00 Bs. (Inactivo)'}
-              </span>
-              {deducirAlquilerPunto && tasaBcv > 0 && (
-                <span className={`text-[11px] font-mono font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  (≈ -{formatUsd((deduccionPuntoBs || 0) / tasaBcv)})
+          {/* Alquiler Diario POS */}
+          {(() => {
+            const rawAlq = config?.alquilerPuntoUsd !== undefined && config?.alquilerPuntoUsd !== null ? Number(config.alquilerPuntoUsd) : 1.78;
+            const alqUsd = rawAlq > 0 ? Number(rawAlq.toFixed(2)) : 1.78;
+            return (
+              <div className={`p-3 rounded-lg border ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+              }`}>
+                <span className={`block mb-1 text-[11px] font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Alquiler Diario POS ({formatUsd(alqUsd)}):
                 </span>
-              )}
-            </div>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-              {deducirAlquilerPunto ? 'Deducción fija por día' : 'No descontado de recargas'}
-            </span>
-          </div>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className={`font-bold font-mono text-sm ${deducirAlquilerPunto ? 'text-rose-600' : 'text-slate-400'}`}>
+                    {deducirAlquilerPunto ? `-${formatBs(deduccionPuntoBs)}` : '0,00 Bs. (Inactivo)'}
+                  </span>
+                  {deducirAlquilerPunto && tasaBcv > 0 && (
+                    <span className={`text-[11px] font-mono font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      (≈ -{formatUsd(alqUsd)})
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {deducirAlquilerPunto ? (
+                    <>
+                      <span className="font-semibold">{formatUsd(alqUsd)} × {formatBs(tasaBcv)}</span>
+                      <span className="block text-[9px] text-slate-400 mt-0.5">
+                        Calculado con la tasa BCV del día
+                      </span>
+                    </>
+                  ) : (
+                    'No descontado de recargas'
+                  )}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Ganancia Neta Real */}
           <div className={`p-3 rounded-lg border relative overflow-hidden ${

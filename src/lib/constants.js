@@ -137,7 +137,7 @@ export const DEFAULT_CONFIG = {
   comisionServiciosPorcentaje: 20, // 20% exclusivo para servicios (Simple TV, CANTV, Inter)
   redondeoMultiplo: 10,   // Redondear a los siguientes 10 Bs (no existen billetes de 5 Bs)
   comisionPuntoPorcentaje: 0.75, // 0.75% que descuenta el banco por ventas pasadas por Punto POS
-  alquilerPuntoUsd: 1.777, // $1.777 diario de alquiler del POS bancario
+  alquilerPuntoUsd: 1.78, // $1.78 diario de alquiler del POS bancario
   deducirAlquilerPunto: false, // Por defecto no deducir alquiler fijo de las recargas (evita números negativos innecesarios)
   biopagoPorcentaje: 2.0,  // 2% de comisión BioPago
   tasaBcvManual: 887.30,   // Tasa oficial actualizada por el usuario

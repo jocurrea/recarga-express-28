@@ -157,9 +157,10 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
   }
 
   // 3. Deducción por alquiler diario fijo del punto POS (solo si el usuario activa 'deducirAlquilerPunto')
-  const alquilerUsd = Number(config.alquilerPuntoUsd ?? 1.777);
+  const rawAlquiler = config.alquilerPuntoUsd !== undefined && config.alquilerPuntoUsd !== null ? Number(config.alquilerPuntoUsd) : 1.78;
+  const alquilerUsd = rawAlquiler > 0 ? Number(rawAlquiler.toFixed(2)) : 0;
   if (config.deducirAlquilerPunto && alquilerUsd > 0 && summary.tasaBcv > 0 && (summary.totalRecargas > 0 || summary.totalAlquilerPasado > 0)) {
-    summary.deduccionAlquilerPuntoBs = alquilerUsd * summary.tasaBcv;
+    summary.deduccionAlquilerPuntoBs = Math.round(alquilerUsd * summary.tasaBcv * 100) / 100;
     summary.deduccionPuntoBs = summary.deduccionAlquilerPuntoBs;
   }
 
