@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { formatBs, formatUsd, validateMontoOperadora } from '@/lib/calculator';
+import { formatBs, formatUsd, validateMontoOperadora, compareTransactionsByTime } from '@/lib/calculator';
 import { exportDailyTransactions } from '@/lib/excelExport';
 import { OPERADORAS, METODOS_PAGO } from '@/lib/constants';
-import { Trash2, Edit2, Search, Filter, Download, AlertTriangle, FileSpreadsheet, X, Check, FileText, Clock, CheckCircle2, User } from 'lucide-react';
+import { Trash2, Edit2, Search, Filter, Download, AlertTriangle, FileSpreadsheet, X, Check, FileText, Clock, CheckCircle2, User, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
 import ReportPdfModal from './ReportPdfModal';
 
 export default function DailyTable({
@@ -29,6 +29,22 @@ export default function DailyTable({
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [payPendingTx, setPayPendingTx] = useState(null);
   const [payPendingMethod, setPayPendingMethod] = useState('efectivo');
+
+  // Ordenamiento cronológico de recargas: 'desc' (de abajo hacia arriba) o 'asc' (de arriba hacia abajo)
+  const [sortOrder, setSortOrder] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('recargas_sort_order') || 'desc';
+    }
+    return 'desc';
+  });
+
+  const handleToggleSort = () => {
+    const nextOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortOrder(nextOrder);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('recargas_sort_order', nextOrder);
+    }
+  };
 
   // Estado para el modal de edición
   const [editingTx, setEditingTx] = useState(null);
@@ -56,7 +72,7 @@ export default function DailyTable({
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
+    const list = transactions.filter((tx) => {
       if (filterOperadora !== 'todas' && tx.operadoraId !== filterOperadora) {
         return false;
       }
@@ -82,7 +98,10 @@ export default function DailyTable({
       }
       return true;
     });
-  }, [transactions, filterOperadora, filterPlataforma, filterMetodo, filterEstado, searchTerm]);
+
+    // Ordenamiento cronológico de mañana a noche (soporta 'desc': de abajo hacia arriba, 'asc': de arriba hacia abajo)
+    return list.slice().sort((a, b) => compareTransactionsByTime(a, b, sortOrder));
+  }, [transactions, filterOperadora, filterPlataforma, filterMetodo, filterEstado, searchTerm, sortOrder]);
 
   // Totales de la tabla filtrada
   const totals = useMemo(() => {
@@ -319,7 +338,26 @@ export default function DailyTable({
             </div>
 
             {/* Botones de Acción Agrupados */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {/* Botón de Secuencia Cronológica */}
+              <button
+                type="button"
+                onClick={handleToggleSort}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs ${
+                  isLight
+                    ? 'bg-orange-50 hover:bg-orange-100/80 border-orange-200 text-orange-800'
+                    : 'bg-orange-950/40 hover:bg-orange-900/50 border-orange-800/60 text-orange-300'
+                }`}
+                title="Cambiar secuencia de orden cronológico"
+              >
+                <ArrowDownUp className="w-3.5 h-3.5" />
+                <span>
+                  {sortOrder === 'desc'
+                    ? 'Secuencia: Mañana ➔ Noche (De abajo hacia arriba)'
+                    : 'Secuencia: Mañana ➔ Noche (De arriba hacia abajo)'}
+                </span>
+              </button>
+
               {!isVendedor && (
                 <>
                   {/* Botón Principal: Exportar PDF / Imprimir */}
@@ -846,7 +884,18 @@ export default function DailyTable({
               isLight ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-slate-900 text-slate-300 border-slate-800'
             }`}>
               <tr>
-                <th className="py-3 px-3">Hora</th>
+                <th
+                  onClick={handleToggleSort}
+                  className="py-3 px-3 cursor-pointer select-none hover:text-orange-500 transition-colors"
+                  title="Haz clic para alternar la secuencia: de abajo hacia arriba o de arriba hacia abajo"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Hora</span>
+                    <span className="text-[11px] font-black font-mono text-orange-500">
+                      {sortOrder === 'desc' ? '⬆' : '⬇'}
+                    </span>
+                  </div>
+                </th>
                 <th className="py-3 px-3">Operadora</th>
                 <th className="py-3 px-3">Origen</th>
                 <th className="py-3 px-3">Cliente / Teléfono</th>

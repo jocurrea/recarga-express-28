@@ -62,8 +62,7 @@ export async function fetchTransactionsFromSupabase() {
     const { data, error } = await supabase
       .from('transacciones')
       .select('*')
-      .order('fecha', { ascending: false })
-      .order('hora', { ascending: false });
+      .order('fecha', { ascending: false });
 
     if (error) {
       console.warn('Error fetching transacciones from Supabase:', error.message);

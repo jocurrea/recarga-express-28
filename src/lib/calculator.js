@@ -219,6 +219,62 @@ export function formatUsd(monto) {
 }
 
 /**
+ * Convierte un string de hora en minutos desde la medianoche (0 - 1439).
+ * Soporta formatos como:
+ * - "08:41 a. m.", "08:41 am", "8:41 a.m.", "08:41"
+ * - "01:37 p. m.", "01:37 pm", "1:37 p.m.", "13:37"
+ * - "11:05 a. m.", "12:30 p. m.", "12:00 a. m."
+ */
+export function parseTimeToMinutes(horaStr) {
+  if (!horaStr || typeof horaStr !== 'string') return 0;
+
+  const clean = horaStr.toLowerCase().replace(/\./g, '').trim();
+  const isPM = clean.includes('pm') || clean.includes('p m') || clean.includes('p');
+  const isAM = clean.includes('am') || clean.includes('a m') || clean.includes('a');
+
+  const match = clean.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  if (isPM && hours < 12) {
+    hours += 12;
+  } else if (isAM && hours === 12) {
+    hours = 0;
+  }
+
+  return hours * 60 + minutes;
+}
+
+/**
+ * Compara dos transacciones por hora cronológica real.
+ * Si sortOrder === 'desc' (por defecto: de abajo hacia arriba):
+ * Las de la mañana quedan abajo y las más recientes / de la noche quedan arriba.
+ * Si sortOrder === 'asc' (de arriba hacia abajo):
+ * Las de la mañana quedan arriba y las de la noche quedan abajo.
+ */
+export function compareTransactionsByTime(txA, txB, order = 'desc') {
+  const minA = parseTimeToMinutes(txA.hora);
+  const minB = parseTimeToMinutes(txB.hora);
+
+  if (minA !== minB) {
+    return order === 'asc' ? minA - minB : minB - minA;
+  }
+
+  // Desempate por timestamp o ID
+  let tsA = 0;
+  let tsB = 0;
+  if (txA.createdAt) tsA = new Date(txA.createdAt).getTime();
+  else if (txA.id && txA.id.startsWith('tx-')) tsA = parseInt(txA.id.split('-')[1], 10) || 0;
+
+  if (txB.createdAt) tsB = new Date(txB.createdAt).getTime();
+  else if (txB.id && txB.id.startsWith('tx-')) tsB = parseInt(txB.id.split('-')[1], 10) || 0;
+
+  return order === 'asc' ? tsA - tsB : tsB - tsA;
+}
+
+/**
  * Valida de forma estricta que el monto cumpla con las reglas de la operadora:
  * - Digitel: >= 500 y múltiplo exacto de 500 Bs (500, 1000, 1500, 2000...).
  * - Movistar: >= 400 y múltiplo exacto de 400 Bs (400, 800, 1200, 1600...).

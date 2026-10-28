@@ -20,7 +20,7 @@ import {
   getBcvRateForDate,
   saveBcvRateForDate
 } from '@/lib/bcv';
-import { calculateDailySummary, formatBs, formatUsd } from '@/lib/calculator';
+import { calculateDailySummary, formatBs, formatUsd, compareTransactionsByTime } from '@/lib/calculator';
 import { DEFAULT_CONFIG } from '@/lib/constants';
 import {
   getAllTransactions,
@@ -219,9 +219,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [loadInitialData, fetchBcvRate]);
 
-  // Transacciones del día seleccionado
+  // Transacciones del día seleccionado ordenadas cronológicamente
   const dayTransactions = useMemo(() => {
-    return allTransactions.filter((t) => t.fecha === selectedDate);
+    return allTransactions
+      .filter((t) => t.fecha === selectedDate)
+      .slice()
+      .sort((a, b) => compareTransactionsByTime(a, b, 'desc'));
   }, [allTransactions, selectedDate]);
 
   // Registros de alquiler de punto a terceros del día seleccionado
