@@ -5,6 +5,9 @@ import {
   CreditCard,
   Plus,
   Trash2,
+  Edit2,
+  Check,
+  X,
   CheckCircle2,
   Clock,
   User,
@@ -21,6 +24,8 @@ export default function AlquilerPuntoView({
   alquilerRecords = [],
   onAddRecord,
   onAddAlquiler,
+  onUpdateRecord,
+  onUpdateAlquiler,
   onDeleteRecord,
   onDeleteAlquiler,
   onToggleTransferido,
@@ -42,9 +47,57 @@ export default function AlquilerPuntoView({
   const [montoTotal, setMontoTotal] = useState('');
   const [error, setError] = useState('');
 
+  // Estado para modal de edición
+  const [editingItem, setEditingItem] = useState(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editTickets, setEditTickets] = useState('1');
+  const [editMonto, setEditMonto] = useState('');
+  const [editComisionPct, setEditComisionPct] = useState('10');
+  const [editTransferido, setEditTransferido] = useState(false);
+  const [editError, setEditError] = useState('');
+
   const addHandler = onAddAlquiler || onAddRecord;
   const deleteHandler = onDeleteAlquiler || onDeleteRecord;
+  const updateHandler = onUpdateAlquiler || onUpdateRecord;
   const puntoRecargas = totalPuntoRecargas || puntoRecargasBs;
+
+  // Manejador para abrir modal de edición
+  const handleStartEdit = (item) => {
+    setEditingItem(item);
+    setEditNombre(item.nombre || '');
+    setEditTickets(String(item.tickets || 1));
+    setEditMonto(String(item.montoTotal || ''));
+    setEditComisionPct(String(item.comisionPorcentaje ?? 10));
+    setEditTransferido(Boolean(item.transferido));
+    setEditError('');
+  };
+
+  const handleSaveEdit = (e) => {
+    if (e) e.preventDefault();
+    if (!editNombre.trim()) {
+      setEditError('Ingresa el nombre del comerciante o negocio');
+      return;
+    }
+    const numMonto = parseFloat(String(editMonto).replace(',', '.'));
+    if (!numMonto || numMonto <= 0) {
+      setEditError('Ingresa un monto válido mayor a cero');
+      return;
+    }
+    const numTickets = parseInt(editTickets, 10) || 1;
+    const numComision = parseFloat(String(editComisionPct).replace(',', '.')) || 10;
+
+    if (updateHandler && editingItem) {
+      updateHandler(editingItem.id, {
+        nombre: editNombre.trim(),
+        tickets: numTickets,
+        montoTotal: numMonto,
+        comisionPorcentaje: numComision,
+        transferido: editTransferido
+      });
+    }
+
+    setEditingItem(null);
+  };
 
   // Comisión configurada (por defecto 10%)
   const comisionPct = 10;
@@ -468,13 +521,22 @@ export default function AlquilerPuntoView({
                       </button>
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <button
-                        onClick={() => deleteHandler && deleteHandler(item.id)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                        title="Eliminar registro"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleStartEdit(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-500/10 transition cursor-pointer"
+                          title="Editar comerciante y monto"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteHandler && deleteHandler(item.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                          title="Eliminar registro"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -530,6 +592,214 @@ export default function AlquilerPuntoView({
           config={config}
           theme={theme}
         />
+      )}
+
+      {/* MODAL DE EDICIÓN DE COMERCIANTE / ALQUILER DE PUNTO */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-all ${
+            isLight
+              ? 'bg-white border-slate-200 text-slate-800'
+              : 'bg-[#0f172a] border-slate-800 text-slate-100'
+          }`}>
+            {/* Header del modal */}
+            <div className={`px-5 py-4 border-b flex items-center justify-between ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center border border-orange-500/20">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight">Editar Comerciante / Registro</h3>
+                  <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Modifica los datos del ticket pasado en el punto
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+                title="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Formulario de edición */}
+            <form onSubmit={handleSaveEdit} className="p-5 space-y-4">
+              {editError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold flex items-center gap-2">
+                  <BadgeAlert className="w-4 h-4 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Nombre Comerciante */}
+              <div>
+                <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Comerciante / Negocio
+                </label>
+                <input
+                  type="text"
+                  value={editNombre}
+                  onChange={(e) => setEditNombre(e.target.value)}
+                  placeholder="Ej: Brayan, Josue, Ramon..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-900'
+                      : 'bg-slate-900 border-slate-700 text-white'
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              {/* Grid Tickets y Comisión */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    Tickets
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    value={editTickets}
+                    onChange={(e) => setEditTickets(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-900'
+                        : 'bg-slate-900 border-slate-700 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    Comisión (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={editComisionPct}
+                    onChange={(e) => setEditComisionPct(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-900'
+                        : 'bg-slate-900 border-slate-700 text-white'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Monto Pasado */}
+              <div>
+                <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Monto Pasado en Punto (Bs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={editMonto}
+                  onChange={(e) => setEditMonto(e.target.value)}
+                  placeholder="0.00"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-black font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-900'
+                      : 'bg-slate-900 border-slate-700 text-white'
+                  }`}
+                />
+              </div>
+
+              {/* Vista previa en vivo del cálculo */}
+              {(() => {
+                const monto = parseFloat(String(editMonto).replace(',', '.')) || 0;
+                const pct = parseFloat(String(editComisionPct).replace(',', '.')) || 10;
+                const ganancia = monto * (pct / 100);
+                const aPagar = monto - ganancia;
+                return (
+                  <div className={`p-3 rounded-xl border space-y-1.5 text-xs font-mono ${
+                    isLight ? 'bg-orange-50/60 border-orange-200 text-slate-800' : 'bg-orange-950/20 border-orange-900/60 text-slate-200'
+                  }`}>
+                    <div className="flex justify-between">
+                      <span className="font-sans font-medium text-slate-500">Tu ganancia ({pct}%):</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">+{formatBs(ganancia)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-orange-200/50 dark:border-orange-800/40 pt-1">
+                      <span className="font-sans font-medium text-slate-500">A transferir ({100 - pct}%):</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatBs(aPagar)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Estado de entrega toggle */}
+              <div>
+                <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Estado de Entrega
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditTransferido(false)}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      !editTransferido
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : isLight
+                        ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Por transferir</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTransferido(true)}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      editTransferido
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : isLight
+                        ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Transferido</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                    isLight
+                      ? 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                      : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Guardar Cambios</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

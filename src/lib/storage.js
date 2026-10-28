@@ -305,6 +305,50 @@ export function deleteAlquilerPunto(id) {
   return updated;
 }
 
+export function updateAlquilerPunto(id, updatedFields) {
+  const all = getAllAlquilerPunto();
+  let updatedRecord = null;
+  const updated = all.map(item => {
+    if (item.id === id) {
+      const monto = Number(
+        updatedFields.montoTotal !== undefined ? updatedFields.montoTotal : item.montoTotal
+      );
+      const comisionPct = Number(
+        updatedFields.comisionPorcentaje !== undefined
+          ? updatedFields.comisionPorcentaje
+          : (item.comisionPorcentaje ?? 10)
+      );
+      const comisionBs = monto * (comisionPct / 100);
+      const montoPagar = monto - comisionBs;
+
+      updatedRecord = {
+        ...item,
+        ...updatedFields,
+        montoTotal: monto,
+        comisionPorcentaje: comisionPct,
+        comisionBs: Math.round(comisionBs * 100) / 100,
+        montoPagar: Math.round(montoPagar * 100) / 100
+      };
+      if (updatedFields.nombre !== undefined) {
+        updatedRecord.nombre = String(updatedFields.nombre).trim();
+      }
+      if (updatedFields.tickets !== undefined) {
+        updatedRecord.tickets = Number(updatedFields.tickets) || 1;
+      }
+      return updatedRecord;
+    }
+    return item;
+  });
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
+  }
+  if (updatedRecord) {
+    syncAlquilerToSupabase(updatedRecord);
+  }
+  return updated;
+}
+
 export function toggleAlquilerTransferido(id) {
   const all = getAllAlquilerPunto();
   let target = null;

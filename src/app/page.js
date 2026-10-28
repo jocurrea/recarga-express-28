@@ -33,6 +33,7 @@ import {
   clearAllTransactions,
   getAllAlquilerPunto,
   addAlquilerPunto,
+  updateAlquilerPunto,
   deleteAlquilerPunto,
   toggleAlquilerTransferido,
   getConfig,
@@ -276,6 +277,11 @@ export default function Home() {
     setAllAlquiler(updated);
   };
 
+  const handleUpdateAlquiler = (id, updatedFields) => {
+    const updated = updateAlquilerPunto(id, updatedFields);
+    setAllAlquiler(updated);
+  };
+
   const handleToggleAlquilerTransferido = (id) => {
     const updated = toggleAlquilerTransferido(id);
     setAllAlquiler(updated);
@@ -507,6 +513,7 @@ export default function Home() {
             alquilerRecords={dayAlquiler}
             selectedDate={selectedDate}
             onAddAlquiler={handleAddAlquiler}
+            onUpdateAlquiler={handleUpdateAlquiler}
             onDeleteAlquiler={handleDeleteAlquiler}
             onToggleTransferido={handleToggleAlquilerTransferido}
             tasaBcv={tasaBcv}
