@@ -276,8 +276,8 @@ export default function WeeklyReport({
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 ${
               pendingWeeklyTxs.length > 0
-                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                ? isLight ? 'bg-amber-500/20 text-amber-700' : 'bg-amber-500/20 text-amber-300'
+                : isLight ? 'bg-emerald-500/20 text-emerald-700' : 'bg-emerald-500/20 text-emerald-400'
             }`}>
               {pendingWeeklyTxs.length > 0 ? <Clock className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
             </div>
@@ -287,12 +287,12 @@ export default function WeeklyReport({
                   Clientes con Recargas Fiadas Pendientes esta Semana
                 </h3>
                 {pendingWeeklyTxs.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-slate-950">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-slate-950 shadow-xs">
                     {pendingWeeklyTxs.length} Pendiente{pendingWeeklyTxs.length > 1 ? 's' : ''}
                   </span>
                 )}
               </div>
-              <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              <p className={`text-xs mt-0.5 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                 {pendingWeeklyTxs.length > 0
                   ? 'Recuerda cobrar a estos clientes fijos para cerrar la semana con caja completa.'
                   : '✓ ¡Semana al día! No tienes recargas pendientes por cobrar a clientes.'}
@@ -301,15 +301,19 @@ export default function WeeklyReport({
           </div>
 
           {pendingWeeklyTxs.length > 0 && (
-            <div className="text-left sm:text-right font-mono bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20">
-              <span className={`text-[10px] uppercase font-bold block ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            <div className={`text-left sm:text-right font-mono px-4 py-2.5 rounded-xl border ${
+              isLight
+                ? 'bg-amber-100/90 border-amber-300 text-amber-950 shadow-xs'
+                : 'bg-amber-950/40 border-amber-800/60 text-amber-200'
+            }`}>
+              <span className={`text-[10px] uppercase font-bold tracking-wider block ${isLight ? 'text-amber-900' : 'text-amber-400'}`}>
                 Total por Cobrar
               </span>
-              <span className="text-lg font-black text-amber-600 dark:text-amber-400">
+              <span className={`text-xl font-black block ${isLight ? 'text-amber-950' : 'text-amber-300'}`}>
                 {formatBs(totalPendienteSemanaBs)}
               </span>
               {tasaBcv > 0 && (
-                <span className={`text-[11px] font-bold block ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                <span className={`text-xs font-bold block ${isLight ? 'text-amber-900' : 'text-amber-400'}`}>
                   ≈ {formatUsd(totalPendienteSemanaBs / tasaBcv)}
                 </span>
               )}
@@ -318,10 +322,14 @@ export default function WeeklyReport({
         </div>
 
         {pendingWeeklyTxs.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-amber-300/50 dark:border-amber-700/50 mt-4">
+          <div className={`overflow-x-auto rounded-xl border mt-4 ${
+            isLight ? 'border-amber-300 bg-white' : 'border-amber-800/60 bg-[#0f172a]'
+          }`}>
             <table className="w-full text-left text-xs font-sans">
               <thead className={`text-[11px] uppercase font-bold border-b ${
-                isLight ? 'bg-amber-100/70 text-slate-800 border-amber-200' : 'bg-amber-950/40 text-amber-200 border-amber-900/50'
+                isLight
+                  ? 'bg-amber-100 text-amber-950 border-amber-300'
+                  : 'bg-amber-950/50 text-amber-200 border-amber-900'
               }`}>
                 <tr>
                   <th className="py-2.5 px-3">Cliente Fiador</th>
@@ -333,38 +341,68 @@ export default function WeeklyReport({
                 </tr>
               </thead>
               <tbody className={`divide-y font-mono ${
-                isLight ? 'divide-amber-200/50 bg-white' : 'divide-amber-900/40 bg-[#0f172a]'
+                isLight ? 'divide-slate-200 bg-white' : 'divide-slate-800 bg-[#0f172a]'
               }`}>
                 {pendingWeeklyTxs.map((tx) => {
                   const dayObj = daysOfWeek.find((d) => d.fechaIso === tx.fecha);
                   return (
-                    <tr key={tx.id} className="transition hover:bg-amber-500/10">
-                      <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">
-                        <span className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          <span>{tx.clienteNombre || 'Cliente habitual'}</span>
+                    <tr
+                      key={tx.id}
+                      className={`transition ${
+                        isLight ? 'hover:bg-amber-50/80' : 'hover:bg-amber-950/20'
+                      }`}
+                    >
+                      <td className={`py-3 px-3 font-sans font-bold text-xs ${
+                        isLight ? 'text-slate-900' : 'text-white'
+                      }`}>
+                        <span className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                            isLight ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-amber-900/40 text-amber-300 border border-amber-700/50'
+                          }`}>
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-sm font-black">
+                            {tx.clienteNombre || 'Cliente habitual'}
+                          </span>
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-sans text-xs text-slate-600 dark:text-slate-300">
-                        {dayObj ? `${dayObj.nombre} (${tx.fecha})` : tx.fecha} • {tx.hora}
+                      <td className={`py-3 px-3 font-sans text-xs ${
+                        isLight ? 'text-slate-800' : 'text-slate-200'
+                      }`}>
+                        <span className="font-bold block">
+                          {dayObj ? `${dayObj.nombre} (${tx.fecha})` : tx.fecha}
+                        </span>
+                        <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {tx.hora}
+                        </span>
                       </td>
-                      <td className="py-2.5 px-3 font-sans font-bold text-slate-800 dark:text-slate-200">
-                        {tx.operadoraNombre}
+                      <td className={`py-3 px-3 font-sans ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        <span className={`inline-block px-2 py-0.5 rounded-md font-black text-xs ${
+                          isLight
+                            ? 'bg-slate-200/80 text-slate-900 border border-slate-300'
+                            : 'bg-slate-800 text-slate-100 border border-slate-700'
+                        }`}>
+                          {tx.operadoraNombre}
+                        </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">
+                      <td className={`py-3 px-3 font-mono text-xs font-bold ${
+                        isLight ? 'text-slate-900' : 'text-slate-100'
+                      }`}>
                         {tx.telefono || '-'}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-black text-amber-600 dark:text-amber-400 text-sm">
+                      <td className={`py-3 px-3 text-right font-black font-mono text-base ${
+                        isLight ? 'text-amber-900' : 'text-amber-300'
+                      }`}>
                         {formatBs(tx.montoCobrado)}
                       </td>
-                      <td className="py-2.5 px-3 text-center">
+                      <td className="py-3 px-3 text-center">
                         <button
                           type="button"
                           onClick={() => {
                             setPayPendingTx(tx);
                             setPayPendingMethod(tx.metodo === 'mixto' ? 'efectivo' : (tx.metodo || 'efectivo'));
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition cursor-pointer"
                           title="Cobrar ahora y pasar a pagado (verde)"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
