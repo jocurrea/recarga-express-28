@@ -15,7 +15,8 @@ import {
   DollarSign,
   ArrowRight,
   FileText,
-  BadgeAlert
+  BadgeAlert,
+  AlertTriangle
 } from 'lucide-react';
 import { formatBs, formatUsd } from '@/lib/calculator';
 import ReportPdfModal from '@/components/ReportPdfModal';
@@ -55,6 +56,7 @@ export default function AlquilerPuntoView({
   const [editComisionPct, setEditComisionPct] = useState('10');
   const [editTransferido, setEditTransferido] = useState(false);
   const [editError, setEditError] = useState('');
+  const [deletingRecord, setDeletingRecord] = useState(null);
 
   const addHandler = onAddAlquiler || onAddRecord;
   const deleteHandler = onDeleteAlquiler || onDeleteRecord;
@@ -530,9 +532,9 @@ export default function AlquilerPuntoView({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteHandler && deleteHandler(item.id)}
+                          onClick={() => setDeletingRecord(item)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                          title="Eliminar registro"
+                          title="Eliminar registro de alquiler de punto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -798,6 +800,100 @@ export default function AlquilerPuntoView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Confirmación de Eliminar Registro de Alquiler de Punto */}
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className={`border rounded-2xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl transition-colors ${
+            isLight ? 'bg-white border-slate-300 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className={`text-base font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  ¿Eliminar registro de alquiler?
+                </h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Se eliminará este pase de tarjeta del arqueo del punto de venta.
+                </p>
+              </div>
+            </div>
+
+            {/* Ficha de datos del registro */}
+            <div className={`rounded-xl p-3.5 border space-y-2 text-xs ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-800'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Comerciante / Vecino:</span>
+                <span className="font-bold text-sm text-rose-600 dark:text-rose-400">
+                  {deletingRecord.nombre || 'Sin nombre'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Vouchers / Tickets:</span>
+                <span className="font-mono font-bold">
+                  {deletingRecord.tickets || 1} {Number(deletingRecord.tickets || 1) === 1 ? 'ticket' : 'tickets'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Monto Total Pasado:</span>
+                <span className="font-mono font-bold">
+                  {formatBs(deletingRecord.montoTotal)}
+                </span>
+              </div>
+
+              <div className={`pt-2 border-t flex items-center justify-between ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}>
+                <div>
+                  <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Comisión Ganada ({deletingRecord.comisionPct || 10}%)
+                  </span>
+                  <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                    +{formatBs((Number(deletingRecord.montoTotal || 0) * Number(deletingRecord.comisionPct || 10)) / 100)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Monto Neto a Transferir
+                  </span>
+                  <span className="font-mono font-black text-sm text-sky-600 dark:text-sky-400">
+                    {formatBs(Number(deletingRecord.montoTotal || 0) - (Number(deletingRecord.montoTotal || 0) * Number(deletingRecord.comisionPct || 10)) / 100)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setDeletingRecord(null)}
+                className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                id="confirm-delete-alquiler-btn"
+                type="button"
+                onClick={() => {
+                  deleteHandler && deleteHandler(deletingRecord.id);
+                  setDeletingRecord(null);
+                }}
+                className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sí, eliminar</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

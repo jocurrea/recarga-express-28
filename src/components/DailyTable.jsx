@@ -29,6 +29,7 @@ export default function DailyTable({
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [payPendingTx, setPayPendingTx] = useState(null);
   const [payPendingMethod, setPayPendingMethod] = useState('efectivo');
+  const [deletingTx, setDeletingTx] = useState(null);
 
   // Ordenamiento cronológico de recargas: 'desc' (de abajo hacia arriba) o 'asc' (de arriba hacia abajo)
   const [sortOrder, setSortOrder] = useState(() => {
@@ -507,6 +508,120 @@ export default function DailyTable({
                 className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg transition cursor-pointer"
               >
                 Sí, vaciar en cero
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmación de Eliminar Recarga Individual */}
+      {deletingTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className={`border rounded-2xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl transition-colors ${
+            isLight ? 'bg-white border-slate-300 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className={`text-base font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  ¿Eliminar esta recarga?
+                </h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Verifica los datos para evitar eliminar una transacción por error.
+                </p>
+              </div>
+            </div>
+
+            {/* Ficha de datos de la recarga a eliminar */}
+            <div className={`rounded-xl p-3.5 border space-y-2 text-xs ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-800'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Operadora y Plataforma:</span>
+                <span className="font-bold flex items-center gap-1.5 font-sans">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{
+                      backgroundColor:
+                        OPERADORAS.find((o) => o.id === deletingTx.operadoraId)?.color || '#94a3b8'
+                    }}
+                  />
+                  <span>{deletingTx.operadoraNombre}</span>
+                  <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${
+                    (deletingTx.plataforma || 'payall').toLowerCase() === 'pagodirecto'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-emerald-700 text-white'
+                  }`}>
+                    {deletingTx.plataforma || 'Payall'}
+                  </span>
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Número / Teléfono:</span>
+                <span className="font-mono font-black text-sm text-rose-600 dark:text-rose-400 tracking-wider">
+                  {deletingTx.telefono || 'Sin número especificado'}
+                </span>
+              </div>
+
+              {deletingTx.clienteNombre && (
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Cliente:</span>
+                  <span className="font-bold">{deletingTx.clienteNombre}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Hora de registro:</span>
+                <span className="font-mono">{deletingTx.hora || '-'}</span>
+              </div>
+
+              <div className={`pt-2 border-t flex items-center justify-between ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}>
+                <div>
+                  <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Monto Recarga
+                  </span>
+                  <span className="font-mono font-bold text-sm">
+                    {formatBs(deletingTx.montoRecarga)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Total Cobrado ({deletingTx.metodo})
+                  </span>
+                  <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                    {formatBs(deletingTx.montoCobrado)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setDeletingTx(null)}
+                className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                id="confirm-delete-tx-btn"
+                type="button"
+                onClick={() => {
+                  onDeleteTransaction(deletingTx.id);
+                  setDeletingTx(null);
+                }}
+                className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sí, eliminar</span>
               </button>
             </div>
           </div>
@@ -1076,8 +1191,8 @@ export default function DailyTable({
                           </button>
                           <button
                             id={`delete-tx-${tx.id}-btn`}
-                            onClick={() => onDeleteTransaction(tx.id)}
-                            title="Eliminar registro"
+                            onClick={() => setDeletingTx(tx)}
+                            title="Eliminar recarga"
                             className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
