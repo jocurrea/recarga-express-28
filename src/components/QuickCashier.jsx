@@ -29,7 +29,7 @@ export default function QuickCashier({
 }) {
   const isLight = theme === 'light';
   const [selectedOperadoraId, setSelectedOperadoraId] = useState('digitel');
-  const [montoRecarga, setMontoRecarga] = useState(500);
+  const [montoRecarga, setMontoRecarga] = useState(null);
   const [customMonto, setCustomMonto] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [selectedMetodo, setSelectedMetodo] = useState('efectivo'); // 'efectivo' | 'punto' | 'biopago' | 'mixto'
@@ -42,6 +42,19 @@ export default function QuickCashier({
   const [plataforma, setPlataforma] = useState('payall'); // 'payall' | 'pagodirecto'
   const [justRegistered, setJustRegistered] = useState(null);
   const [platformNotice, setPlatformNotice] = useState('');
+
+  // Función de reinicio completo del formulario
+  const handleResetForm = () => {
+    setMontoRecarga(null);
+    setCustomMonto('');
+    setIsCustomMode(false);
+    setSelectedMetodo('efectivo');
+    setMontoMixtoEfectivo('');
+    setMontoMixtoDigital('');
+    setEstadoPago('pagado');
+    setClienteNombre('');
+    setTelefono('');
+  };
 
   const currentOperadora = useMemo(() => {
     return OPERADORAS.find(op => op.id === selectedOperadoraId) || OPERADORAS[0];
@@ -60,19 +73,12 @@ export default function QuickCashier({
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Al cambiar de operadora, ajustar monto al mínimo por defecto de la operadora
+  // Al cambiar de operadora, resetear el monto si el que estaba seleccionado no es válido en la nueva operadora
   useEffect(() => {
     if (currentOperadora) {
-      const minBase = currentOperadora.minMonto || currentOperadora.montosDefault?.[0] || 500;
-      if (currentOperadora.esLibre) {
-        // Para operadoras libres (Simple TV, Inter, Cantv)
-        if (!customMonto || parseMontoDecimal(customMonto) < minBase) {
-          setCustomMonto(String(minBase));
-        }
-      } else {
-        // Para telefonía fija/móvil
+      if (!currentOperadora.esLibre && montoRecarga !== null) {
         if (!currentOperadora.montosDefault?.includes(montoRecarga)) {
-          setMontoRecarga(minBase);
+          setMontoRecarga(null);
         }
       }
     }
@@ -173,15 +179,14 @@ export default function QuickCashier({
 
   const handleSelectOperadora = (opId) => {
     setSelectedOperadoraId(opId);
+    // Reiniciar selección de monto para que la cajera escoja expresamente
+    setMontoRecarga(null);
+    setCustomMonto('');
     const opObj = OPERADORAS.find(o => o.id === opId);
-    const minMonto = opObj?.minMonto || 500;
-
     if (opObj?.esLibre) {
-      setCustomMonto(String(minMonto));
       setIsCustomMode(true);
     } else {
       setIsCustomMode(false);
-      setMontoRecarga(minMonto);
     }
 
     // Simple TV solo está disponible en PagoDirecto (Payall no lo tiene)
@@ -251,18 +256,8 @@ export default function QuickCashier({
 
     playChime();
     setJustRegistered(tx);
-    setTelefono('');
-    setClienteNombre('');
-    setEstadoPago('pagado');
-    if (selectedMetodo === 'mixto') {
-      setMontoMixtoEfectivo('');
-      setMontoMixtoDigital('');
-    }
-
-    // Si es libre, mantener el valor base
-    if (currentOperadora.esLibre) {
-      setCustomMonto(String(currentOperadora.minMonto || 500));
-    }
+    // Reiniciar formulario para evitar confusiones y dobles recargas accidentales
+    handleResetForm();
 
     setTimeout(() => {
       setJustRegistered(null);
@@ -447,16 +442,34 @@ export default function QuickCashier({
               </div>
             </div>
 
-            {!currentOperadora.esLibre && (
-              <button
-                id="toggle-custom-amount-btn"
-                type="button"
-                onClick={() => setIsCustomMode(!isCustomMode)}
-                className={`text-xs hover:underline font-semibold cursor-pointer self-start sm:self-auto transition-colors ${currentTheme.accentText}`}
-              >
-                {isCustomMode ? 'Ver montos predefinidos' : 'Otro monto manual'}
-              </button>
-            )}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {(activeMontoRecarga > 0 || clienteNombre || telefono || selectedMetodo !== 'efectivo' || estadoPago !== 'pagado') && (
+                <button
+                  id="reset-form-btn"
+                  type="button"
+                  onClick={handleResetForm}
+                  className={`text-xs flex items-center gap-1 font-semibold transition px-2.5 py-1 rounded-lg border cursor-pointer ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                      : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                  }`}
+                  title="Reiniciar selección y campos del formulario"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Limpiar</span>
+                </button>
+              )}
+              {!currentOperadora.esLibre && (
+                <button
+                  id="toggle-custom-amount-btn"
+                  type="button"
+                  onClick={() => setIsCustomMode(!isCustomMode)}
+                  className={`text-xs hover:underline font-semibold cursor-pointer transition-colors ${currentTheme.accentText}`}
+                >
+                  {isCustomMode ? 'Ver montos predefinidos' : 'Otro monto manual'}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* VISTA 1: OPERADORA LIBRE (Simple TV, Inter, Cantv con soporte de decimales y 20% de comisión) */}
@@ -944,7 +957,7 @@ export default function QuickCashier({
             <div>
               <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Recarga solicitada:</span>
               <div className={`text-base font-bold font-mono ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
-                {formatBs(activeMontoRecarga)}
+                {activeMontoRecarga > 0 ? formatBs(activeMontoRecarga) : '—'}
               </div>
               <span className={`text-[10px] font-bold uppercase ${
                 selectedOperadoraId === 'simpletv' || plataforma === 'pagodirecto'
@@ -970,16 +983,16 @@ export default function QuickCashier({
               <div className={`text-2xl sm:text-3xl font-black font-mono ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                {formatBs(montoCobrado)}
+                {activeMontoRecarga > 0 ? formatBs(montoCobrado) : '0,00 Bs.'}
               </div>
             </div>
 
             <div className="text-right">
               <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Ganancia bruta:</span>
               <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                +{formatBs(ganancia)} ({margenPct}%)
+                {activeMontoRecarga > 0 ? `+${formatBs(ganancia)} (${margenPct}%)` : '+0,00 Bs. (0.0%)'}
               </div>
-              {tasaBcv > 0 && (
+              {tasaBcv > 0 && activeMontoRecarga > 0 && (
                 <div className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   ≈ {formatUsd(ganancia / tasaBcv)}
                 </div>
@@ -1006,7 +1019,9 @@ export default function QuickCashier({
               : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
           }`}
         >
-          {!isValidMonto && activeMontoRecarga > 0
+          {activeMontoRecarga <= 0
+            ? 'Selecciona un monto para recargar'
+            : !isValidMonto && activeMontoRecarga > 0
             ? (montoError || `Monto no permitido para ${currentOperadora.nombre}`)
             : (selectedMetodo === 'mixto' && !isMixtoValido)
             ? `Ajusta el Pago Mixto para que sume ${formatBs(montoCobrado)}`
