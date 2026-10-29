@@ -14,7 +14,8 @@ import {
   Info,
   Split,
   User,
-  Clock
+  Clock,
+  Smartphone
 } from 'lucide-react';
 
 export default function QuickCashier({
@@ -214,6 +215,7 @@ export default function QuickCashier({
     let finalMontoEfectivo = 0;
     let finalMontoPunto = 0;
     let finalMontoBiopago = 0;
+    let finalMontoPagoMovil = 0;
 
     if (selectedMetodo === 'efectivo') {
       finalMontoEfectivo = montoCobrado;
@@ -221,12 +223,16 @@ export default function QuickCashier({
       finalMontoPunto = montoCobrado;
     } else if (selectedMetodo === 'biopago') {
       finalMontoBiopago = montoCobrado;
+    } else if (selectedMetodo === 'pagomovil') {
+      finalMontoPagoMovil = montoCobrado;
     } else if (selectedMetodo === 'mixto') {
       finalMontoEfectivo = parsedEfectivo;
       if (metodoMixtoDigital === 'punto') {
         finalMontoPunto = parsedDigital;
-      } else {
+      } else if (metodoMixtoDigital === 'biopago') {
         finalMontoBiopago = parsedDigital;
+      } else if (metodoMixtoDigital === 'pagomovil') {
+        finalMontoPagoMovil = parsedDigital;
       }
     }
 
@@ -247,6 +253,7 @@ export default function QuickCashier({
       montoEfectivo: finalMontoEfectivo,
       montoPunto: finalMontoPunto,
       montoBiopago: finalMontoBiopago,
+      montoPagoMovil: finalMontoPagoMovil,
       estadoPago: estadoPago, // 'pagado' | 'pendiente'
       clienteNombre: clienteNombre.trim(),
       telefono: telefono.trim(),
@@ -687,7 +694,7 @@ export default function QuickCashier({
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             {METODOS_PAGO.map((metodo) => {
               const isSelected = selectedMetodo === metodo.id;
               const IconComponent =
@@ -697,6 +704,8 @@ export default function QuickCashier({
                   ? CreditCard
                   : metodo.id === 'biopago'
                   ? Fingerprint
+                  : metodo.id === 'pagomovil'
+                  ? Smartphone
                   : Split;
 
               return (
@@ -726,6 +735,8 @@ export default function QuickCashier({
                       ? 'Tarjeta'
                       : metodo.id === 'biopago'
                       ? 'Huella'
+                      : metodo.id === 'pagomovil'
+                      ? 'Transferencia'
                       : 'Dividido'}
                   </span>
                 </button>
@@ -769,11 +780,11 @@ export default function QuickCashier({
                   />
                 </div>
 
-                {/* PARTE DIGITAL: PUNTO O BIOPAGO */}
+                {/* PARTE DIGITAL: PUNTO, BIOPAGO O PAGO MÓVIL */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                      {metodoMixtoDigital === 'punto' ? '💳 Por Punto POS (Bs.)' : '👆 Por BioPago (Bs.)'}
+                      {metodoMixtoDigital === 'punto' ? '💳 Por Punto POS (Bs.)' : metodoMixtoDigital === 'biopago' ? '👆 Por BioPago (Bs.)' : '📱 Por Pago Móvil (Bs.)'}
                     </label>
                     <div className="flex items-center gap-1">
                       <button
@@ -785,7 +796,7 @@ export default function QuickCashier({
                             : isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
                         }`}
                       >
-                        Punto POS
+                        Punto
                       </button>
                       <button
                         type="button"
@@ -797,6 +808,17 @@ export default function QuickCashier({
                         }`}
                       >
                         BioPago
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMetodoMixtoDigital('pagomovil')}
+                        className={`text-[10px] px-2 py-0.5 rounded font-bold transition cursor-pointer ${
+                          metodoMixtoDigital === 'pagomovil'
+                            ? 'bg-violet-600 text-white shadow-xs'
+                            : isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        Pago Móvil
                       </button>
                     </div>
                   </div>
@@ -820,7 +842,7 @@ export default function QuickCashier({
               <div className="mt-2.5 pt-2 border-t border-purple-200/60 dark:border-purple-800/40 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                 <span className={isMixtoValido ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 font-bold'}>
                   {isMixtoValido
-                    ? `✓ Cuadra: ${formatBs(parsedEfectivo)} Efec + ${formatBs(parsedDigital)} ${metodoMixtoDigital === 'punto' ? 'Punto' : 'Bio'} = ${formatBs(montoCobrado)}`
+                    ? `✓ Cuadra: ${formatBs(parsedEfectivo)} Efec + ${formatBs(parsedDigital)} ${metodoMixtoDigital === 'punto' ? 'Punto' : metodoMixtoDigital === 'biopago' ? 'Bio' : 'P.Móvil'} = ${formatBs(montoCobrado)}`
                     : `⚠ Diferencia: ${(montoCobrado - (parsedEfectivo + parsedDigital)).toFixed(2)} Bs (debe dar exactamente ${formatBs(montoCobrado)})`
                   }
                 </span>

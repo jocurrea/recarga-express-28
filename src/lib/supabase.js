@@ -28,6 +28,7 @@ export function mapRowToTx(row) {
     montoEfectivo: Number(row.monto_efectivo || 0),
     montoPunto: Number(row.monto_punto || 0),
     montoBiopago: Number(row.monto_biopago || 0),
+    montoPagoMovil: Number(row.monto_pagomovil ?? (row.metodo === 'pagomovil' ? row.monto_cobrado : 0)),
     telefono: row.telefono || '',
     clienteNombre: row.cliente_nombre || '',
     estadoPago: row.estado_pago || 'pagado',
@@ -49,6 +50,7 @@ export function mapTxToRow(tx) {
     monto_efectivo: Number(tx.montoEfectivo || 0),
     monto_punto: Number(tx.montoPunto || 0),
     monto_biopago: Number(tx.montoBiopago || 0),
+    monto_pagomovil: Number(tx.montoPagoMovil || 0),
     telefono: tx.telefono || '',
     cliente_nombre: tx.clienteNombre || '',
     estado_pago: tx.estadoPago || 'pagado',
@@ -84,7 +86,14 @@ export async function syncTransactionToSupabase(tx) {
       .upsert([row], { onConflict: 'id' });
 
     if (error) {
-      console.warn('Error saving tx to Supabase:', error.message);
+      // Si la columna monto_pagomovil aún no existe en el esquema remoto, reintentar sin ella
+      if (error.message?.includes('monto_pagomovil') || error.code === '42703') {
+        const fallbackRow = { ...row };
+        delete fallbackRow.monto_pagomovil;
+        await supabase.from('transacciones').upsert([fallbackRow], { onConflict: 'id' });
+      } else {
+        console.warn('Error saving tx to Supabase:', error.message);
+      }
     }
   } catch (err) {
     console.warn('Error syncing tx to Supabase:', err);

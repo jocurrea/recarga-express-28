@@ -279,10 +279,10 @@ export default function ReportPdfModal({
                           <td className="py-1.5 px-2 text-[10px] font-sans">
                             {tx.metodo === 'mixto' ? (
                               <span className="text-purple-800 font-bold">
-                                MIXTO ({formatBs(tx.montoEfectivo)} Efec / {formatBs(tx.montoPunto > 0 ? tx.montoPunto : tx.montoBiopago)} {tx.montoPunto > 0 ? 'Punto' : 'Bio'})
+                                MIXTO ({formatBs(tx.montoEfectivo)} Efec / {formatBs(tx.montoPunto > 0 ? tx.montoPunto : (tx.montoBiopago > 0 ? tx.montoBiopago : tx.montoPagoMovil))} {tx.montoPunto > 0 ? 'Punto' : (tx.montoBiopago > 0 ? 'Bio' : 'P.Móvil')})
                               </span>
                             ) : (
-                              <span className="uppercase">{tx.metodo}</span>
+                              <span className="uppercase font-semibold">{tx.metodo === 'pagomovil' ? 'PAGO MÓVIL' : tx.metodo}</span>
                             )}
                           </td>
                           <td className="py-1.5 px-2 text-right font-bold text-emerald-700">+{formatBs(gan)}</td>

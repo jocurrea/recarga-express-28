@@ -75,6 +75,7 @@ export async function POST(request) {
         'Efectivo (Bs)',
         'Punto POS (Bs)',
         'BioPago (Bs)',
+        'Pago Móvil (Bs)',
         'Teléfono / Cliente',
         'Ganancia (Bs)'
       ];
@@ -91,6 +92,7 @@ export async function POST(request) {
           tx.metodo === 'mixto' ? (Number(tx.montoEfectivo || 0) || null) : (tx.metodo === 'efectivo' ? Number(tx.montoCobrado || 0) : null),
           tx.metodo === 'mixto' ? (Number(tx.montoPunto || 0) || null) : (tx.metodo === 'punto' ? Number(tx.montoCobrado || 0) : null),
           tx.metodo === 'mixto' ? (Number(tx.montoBiopago || 0) || null) : (tx.metodo === 'biopago' ? Number(tx.montoCobrado || 0) : null),
+          tx.metodo === 'mixto' ? (Number(tx.montoPagoMovil || 0) || null) : (tx.metodo === 'pagomovil' ? Number(tx.montoCobrado || 0) : null),
           tx.telefono || '',
           gan
         ];
@@ -105,6 +107,7 @@ export async function POST(request) {
         Number(totals.efectivo || 0),
         Number(totals.punto || 0),
         Number(totals.biopago || 0),
+        Number(totals.pagoMovil || 0),
         '',
         Number(totals.ganancia || 0)
       ];

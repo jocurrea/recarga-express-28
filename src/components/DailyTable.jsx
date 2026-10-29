@@ -120,12 +120,15 @@ export default function DailyTable({
           acc.efectivo += Number(tx.montoEfectivo || 0);
           acc.punto += Number(tx.montoPunto || 0);
           acc.biopago += Number(tx.montoBiopago || 0);
+          acc.pagoMovil += Number(tx.montoPagoMovil || 0);
         } else if (tx.metodo === 'efectivo') {
           acc.efectivo += cob;
         } else if (tx.metodo === 'punto') {
           acc.punto += cob;
         } else if (tx.metodo === 'biopago') {
           acc.biopago += cob;
+        } else if (tx.metodo === 'pagomovil') {
+          acc.pagoMovil += cob;
         }
 
         return acc;
@@ -136,6 +139,7 @@ export default function DailyTable({
         efectivo: 0,
         punto: 0,
         biopago: 0,
+        pagoMovil: 0,
         ganancia: 0
       }
     );
@@ -159,6 +163,7 @@ export default function DailyTable({
       montoEfectivo: tx.montoEfectivo ?? (tx.metodo === 'efectivo' ? tx.montoCobrado : 0),
       montoPunto: tx.montoPunto ?? (tx.metodo === 'punto' ? tx.montoCobrado : 0),
       montoBiopago: tx.montoBiopago ?? (tx.metodo === 'biopago' ? tx.montoCobrado : 0),
+      montoPagoMovil: tx.montoPagoMovil ?? (tx.metodo === 'pagomovil' ? tx.montoCobrado : 0),
       plataforma: (tx.plataforma || 'payall').toLowerCase(),
       montoRecarga: tx.montoRecarga || 0,
       montoCobrado: tx.montoCobrado || 0,
@@ -193,6 +198,7 @@ export default function DailyTable({
     let finalEfectivo = 0;
     let finalPunto = 0;
     let finalBiopago = 0;
+    let finalPagoMovil = 0;
 
     if (editForm.metodo === 'efectivo') {
       finalEfectivo = cobradoNum;
@@ -200,11 +206,14 @@ export default function DailyTable({
       finalPunto = cobradoNum;
     } else if (editForm.metodo === 'biopago') {
       finalBiopago = cobradoNum;
+    } else if (editForm.metodo === 'pagomovil') {
+      finalPagoMovil = cobradoNum;
     } else if (editForm.metodo === 'mixto') {
       finalEfectivo = parseDecimal(editForm.montoEfectivo);
       finalPunto = parseDecimal(editForm.montoPunto);
       finalBiopago = parseDecimal(editForm.montoBiopago);
-      const totalSuma = finalEfectivo + finalPunto + finalBiopago;
+      finalPagoMovil = parseDecimal(editForm.montoPagoMovil);
+      const totalSuma = finalEfectivo + finalPunto + finalBiopago + finalPagoMovil;
       if (Math.abs(totalSuma - cobradoNum) > 0.05) {
         setEditError(`En pago mixto, la suma (${totalSuma.toFixed(2)} Bs) debe ser igual al total cobrado (${cobradoNum.toFixed(2)} Bs).`);
         return;
@@ -222,6 +231,7 @@ export default function DailyTable({
       montoEfectivo: finalEfectivo,
       montoPunto: finalPunto,
       montoBiopago: finalBiopago,
+      montoPagoMovil: finalPagoMovil,
       plataforma: finalPlat,
       montoRecarga: recargaNum,
       montoCobrado: cobradoNum,
@@ -591,7 +601,7 @@ export default function DailyTable({
                 </div>
                 <div className="text-right">
                   <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Total Cobrado ({deletingTx.metodo})
+                    Total Cobrado ({deletingTx.metodo === 'pagomovil' ? 'Pago Móvil' : deletingTx.metodo})
                   </span>
                   <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
                     {formatBs(deletingTx.montoCobrado)}
@@ -824,7 +834,7 @@ export default function DailyTable({
                     <span className="block text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase mb-2">
                       Desglose de Pago Mixto:
                     </span>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Efectivo (Bs)</label>
                         <input
@@ -856,6 +866,18 @@ export default function DailyTable({
                           step="any"
                           value={editForm.montoBiopago}
                           onChange={(e) => setEditForm({ ...editForm, montoBiopago: e.target.value })}
+                          className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold border ${
+                            isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Pago Móvil (Bs)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={editForm.montoPagoMovil}
+                          onChange={(e) => setEditForm({ ...editForm, montoPagoMovil: e.target.value })}
                           className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold border ${
                             isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
                           }`}
@@ -1020,6 +1042,7 @@ export default function DailyTable({
                 <th className="py-3 px-3 text-right">Efectivo</th>
                 <th className="py-3 px-3 text-right">Punto</th>
                 <th className="py-3 px-3 text-right">BioPago</th>
+                <th className="py-3 px-3 text-right">Pago Móvil</th>
                 {!isVendedor && <th className="py-3 px-3 text-right">Ganancia</th>}
                 <th className="py-3 px-2 text-center">Acción</th>
               </tr>
@@ -1027,7 +1050,7 @@ export default function DailyTable({
             <tbody className={`divide-y font-mono ${isLight ? 'divide-slate-100' : 'divide-slate-800'}`}>
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={isVendedor ? 11 : 12} className="py-10 text-center font-sans">
+                  <td colSpan={isVendedor ? 12 : 13} className="py-10 text-center font-sans">
                     <p className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>No hay recargas registradas para este filtro o fecha.</p>
                     <p className="text-xs text-slate-500 mt-1">Usa la pestaña &quot;Cajero Rápido&quot; para registrar nuevas recargas.</p>
                   </td>
@@ -1163,6 +1186,18 @@ export default function DailyTable({
                           '-'
                         )}
                       </td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${isLight ? 'text-violet-900 font-bold' : 'text-violet-400'}`}>
+                        {tx.metodo === 'mixto' && Number(tx.montoPagoMovil || 0) > 0 ? (
+                          <div>
+                            <span>{formatBs(tx.montoPagoMovil)}</span>
+                            <span className={`block text-[9px] font-sans font-medium ${isLight ? 'text-violet-950 font-bold' : 'text-violet-300'}`}>p.móvil</span>
+                          </div>
+                        ) : tx.metodo === 'pagomovil' ? (
+                          formatBs(tx.montoCobrado)
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                       {!isVendedor && (
                         <td className="py-2.5 px-3 text-right">
                           <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono block">
@@ -1247,6 +1282,11 @@ export default function DailyTable({
                     isLight ? 'text-amber-900 font-extrabold' : 'text-amber-300'
                   }`}>
                     {formatBs(totals.biopago)}
+                  </td>
+                  <td className={`py-3 px-3 text-right font-bold ${
+                    isLight ? 'text-violet-900 font-extrabold' : 'text-violet-300'
+                  }`}>
+                    {formatBs(totals.pagoMovil)}
                   </td>
                   {!isVendedor && (
                     <td className="py-3 px-3 text-right">
@@ -1340,11 +1380,12 @@ export default function DailyTable({
                 }`}>
                   ¿Cómo está pagando el cliente?
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { id: 'efectivo', nombre: 'Efectivo', color: 'emerald' },
                     { id: 'punto', nombre: 'Punto POS', color: 'sky' },
-                    { id: 'biopago', nombre: 'BioPago', color: 'amber' }
+                    { id: 'biopago', nombre: 'BioPago', color: 'amber' },
+                    { id: 'pagomovil', nombre: 'Pago Móvil', color: 'violet' }
                   ].map((m) => (
                     <button
                       key={m.id}

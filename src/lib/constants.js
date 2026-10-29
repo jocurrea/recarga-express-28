@@ -123,6 +123,14 @@ export const METODOS_PAGO = [
     buttonActive: 'bg-amber-600 text-white shadow-lg shadow-amber-950/60 border-amber-400'
   },
   {
+    id: 'pagomovil',
+    nombre: 'Pago Móvil',
+    icono: 'Smartphone',
+    color: 'violet',
+    badge: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+    buttonActive: 'bg-violet-600 text-white shadow-lg shadow-violet-950/60 border-violet-400'
+  },
+  {
     id: 'mixto',
     nombre: 'Mixto',
     icono: 'Split',

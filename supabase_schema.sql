@@ -13,10 +13,11 @@ CREATE TABLE IF NOT EXISTS transacciones (
   plataforma TEXT DEFAULT 'payall', -- 'payall' | 'pagodirecto'
   monto_recarga NUMERIC(12, 2) NOT NULL DEFAULT 0,
   monto_cobrado NUMERIC(12, 2) NOT NULL DEFAULT 0,
-  metodo TEXT NOT NULL DEFAULT 'efectivo', -- 'efectivo' | 'punto' | 'biopago' | 'mixto'
+  metodo TEXT NOT NULL DEFAULT 'efectivo', -- 'efectivo' | 'punto' | 'biopago' | 'pagomovil' | 'mixto'
   monto_efectivo NUMERIC(12, 2) DEFAULT 0,
   monto_punto NUMERIC(12, 2) DEFAULT 0,
   monto_biopago NUMERIC(12, 2) DEFAULT 0,
+  monto_pagomovil NUMERIC(12, 2) DEFAULT 0,
   telefono TEXT,
   cliente_nombre TEXT,
   estado_pago TEXT DEFAULT 'pagado', -- 'pagado' | 'pendiente'

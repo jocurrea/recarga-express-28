@@ -64,6 +64,7 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     totalEfectivo: 0,
     totalPunto: 0,
     totalBiopago: 0,
+    totalPagoMovil: 0,
     // Desglose por Plataforma
     totalPayallRecargas: 0,
     totalPayallCobrado: 0,
@@ -125,12 +126,15 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
       summary.totalEfectivo += Number(t.montoEfectivo || 0);
       summary.totalPunto += Number(t.montoPunto || 0);
       summary.totalBiopago += Number(t.montoBiopago || 0);
+      summary.totalPagoMovil += Number(t.montoPagoMovil || 0);
     } else if (t.metodo === 'efectivo') {
       summary.totalEfectivo += cobrado;
     } else if (t.metodo === 'punto') {
       summary.totalPunto += cobrado;
     } else if (t.metodo === 'biopago') {
       summary.totalBiopago += cobrado;
+    } else if (t.metodo === 'pagomovil') {
+      summary.totalPagoMovil += cobrado;
     }
   }
 

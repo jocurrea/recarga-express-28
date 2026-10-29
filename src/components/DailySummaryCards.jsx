@@ -6,7 +6,8 @@ import {
   CreditCard,
   Fingerprint,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Smartphone
 } from 'lucide-react';
 import { formatBs, formatUsd } from '@/lib/calculator';
 
@@ -23,6 +24,7 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
     totalEfectivo,
     totalPunto,
     totalBiopago = 0,
+    totalPagoMovil = 0,
     totalPayallRecargas = 0,
     totalPayallCobrado = 0,
     gananciaPayall = 0,
@@ -105,8 +107,8 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
           </div>
         </div>
 
-        {/* Cajas de Arqueo por Medio de Pago (Efectivo, Punto POS, BioPago) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Cajas de Arqueo por Medio de Pago (Efectivo, Punto POS, BioPago, Pago Móvil) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Efectivo en Mano */}
           <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
             isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'
@@ -169,6 +171,26 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
             </div>
             <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               Total cobrado por huella digital
+            </p>
+          </div>
+
+          {/* Pago Móvil */}
+          <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider ${
+                isLight ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                Pago Móvil
+              </span>
+              <Smartphone className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div className={`text-2xl font-black font-mono ${isLight ? 'text-violet-700' : 'text-violet-400'}`}>
+              {formatBs(totalPagoMovil)}
+            </div>
+            <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Total transferencias bancarias
             </p>
           </div>
         </div>
@@ -427,8 +449,8 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
         </div>
       </div>
 
-      {/* TRES CAJAS DE RECAUDACIÓN (Efectivo, Punto, BioPago) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* CUATRO CAJAS DE RECAUDACIÓN (Efectivo, Punto, BioPago, Pago Móvil) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Efectivo en Mano */}
         <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
           isLight
@@ -494,6 +516,28 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
           </div>
           <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             Cobro por huella digital (-{biopagoPct}% comisión)
+          </p>
+        </div>
+
+        {/* Cobrado por Pago Móvil */}
+        <div className={`rounded-xl p-4 border transition-colors shadow-sm ${
+          isLight
+            ? 'bg-white border-slate-200'
+            : 'bg-[#0f172a] border-slate-800'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isLight ? 'text-slate-600' : 'text-slate-400'
+            }`}>
+              Pago Móvil
+            </span>
+            <Smartphone className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div className={`text-2xl font-black font-mono ${isLight ? 'text-violet-700' : 'text-violet-400'}`}>
+            {formatBs(totalPagoMovil)}
+          </div>
+          <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            Dinero recibido en cuenta bancaria
           </p>
         </div>
       </div>

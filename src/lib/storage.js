@@ -96,10 +96,11 @@ export function addTransaction(data) {
     operadoraNombre: data.operadoraNombre,
     montoRecarga: Number(data.montoRecarga),
     montoCobrado: Number(data.montoCobrado),
-    metodo: data.metodo, // 'efectivo' | 'punto' | 'biopago' | 'mixto'
+    metodo: data.metodo, // 'efectivo' | 'punto' | 'biopago' | 'pagomovil' | 'mixto'
     montoEfectivo: Number(data.montoEfectivo || 0),
     montoPunto: Number(data.montoPunto || 0),
     montoBiopago: Number(data.montoBiopago || 0),
+    montoPagoMovil: Number(data.montoPagoMovil || 0),
     estadoPago: data.estadoPago || 'pagado', // 'pagado' | 'pendiente'
     clienteNombre: (data.clienteNombre || '').trim(),
     fechaPago: data.estadoPago === 'pendiente' ? null : (data.fechaPago || new Date().toISOString()),
@@ -165,14 +166,22 @@ export function toggleEstadoPago(id, nuevoMetodo = null) {
           actualizacion.montoEfectivo = t.montoCobrado;
           actualizacion.montoPunto = 0;
           actualizacion.montoBiopago = 0;
+          actualizacion.montoPagoMovil = 0;
         } else if (nuevoMetodo === 'punto') {
           actualizacion.montoPunto = t.montoCobrado;
           actualizacion.montoEfectivo = 0;
           actualizacion.montoBiopago = 0;
+          actualizacion.montoPagoMovil = 0;
         } else if (nuevoMetodo === 'biopago') {
           actualizacion.montoBiopago = t.montoCobrado;
           actualizacion.montoEfectivo = 0;
           actualizacion.montoPunto = 0;
+          actualizacion.montoPagoMovil = 0;
+        } else if (nuevoMetodo === 'pagomovil') {
+          actualizacion.montoPagoMovil = t.montoCobrado;
+          actualizacion.montoEfectivo = 0;
+          actualizacion.montoPunto = 0;
+          actualizacion.montoBiopago = 0;
         }
       }
 
