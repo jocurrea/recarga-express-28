@@ -43,7 +43,12 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
     totalAlquilerPasado = 0,
     totalAlquilerGananciaBs = 0,
     totalAlquilerPagarBs = 0,
+    totalAlquilerPuntoPasado = 0,
+    totalAlquilerPuntoGananciaBs = 0,
+    totalAlquilerBiopagoPasado = 0,
+    totalAlquilerBiopagoGananciaBs = 0,
     totalPuntoLoteGeneral = 0,
+    totalBiopagoLoteGeneral = 0,
     countAlquilerComerciantes = 0,
     countAlquilerTickets = 0,
     gananciaRecargasBs = 0,
@@ -237,7 +242,7 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
                   isLight ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-orange-950/60 text-orange-300 border-orange-800'
                 }`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                  Alquiler Punto: <span className="font-mono">+{formatBs(totalAlquilerGananciaBs)}</span>
+                  Alquiler POS/BioPago: <span className="font-mono">+{formatBs(totalAlquilerGananciaBs)}</span>
                   <span className="opacity-75 font-mono">({formatUsd(gananciaAlquilerUsd || (tasaBcv > 0 ? totalAlquilerGananciaBs / tasaBcv : 0))})</span>
                 </span>
               </div>
@@ -410,7 +415,7 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold flex items-center gap-1.5 text-orange-600 dark:text-orange-400 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-xs"></span>
-                  Alquiler Punto (10%)
+                  Alquiler POS & BioPago (10%)
                 </span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
                   isLight ? 'bg-orange-100/80 text-orange-800 border-orange-200' : 'bg-orange-950/60 text-orange-300 border-orange-800'
@@ -491,8 +496,8 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
             {formatBs(totalPuntoLoteGeneral || totalPunto)}
           </div>
           <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            {totalAlquilerPasado > 0
-              ? `Lote: Recargas (${formatBs(totalPunto)}) + Vecinos (${formatBs(totalAlquilerPasado)})`
+            {totalAlquilerPuntoPasado > 0
+              ? `Lote: Recargas (${formatBs(totalPunto)}) + Vecinos (${formatBs(totalAlquilerPuntoPasado)})`
               : `Liquidado en banco (-${comisionPuntoPct}% comisión)`}
           </p>
         </div>
@@ -512,10 +517,12 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
             <Fingerprint className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
           <div className={`text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            {formatBs(totalBiopago)}
+            {formatBs(totalBiopagoLoteGeneral || totalBiopago)}
           </div>
           <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            Cobro por huella digital (-{biopagoPct}% comisión)
+            {totalAlquilerBiopagoPasado > 0
+              ? `Lote: Recargas (${formatBs(totalBiopago)}) + Vecinos (${formatBs(totalAlquilerBiopagoPasado)})`
+              : `Cobro por huella digital (-${biopagoPct}% comisión)`}
           </p>
         </div>
 
@@ -634,11 +641,15 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
               )}
             </div>
             <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              <span className="font-semibold">{biopagoPct}% sobre {formatBs(totalBiopago)}</span>
-              {tasaBcv > 0 && deduccionBiopagoBs > 0 && (
-                <span className="block text-[9px] text-slate-400 mt-0.5">
-                  Tasa del día: {formatBs(tasaBcv)}
-                </span>
+              {totalAlquilerBiopagoPasado > 0 ? (
+                <>
+                  <span className="font-semibold">{biopagoPct}% sobre {formatBs(totalBiopagoLoteGeneral || (totalBiopago + totalAlquilerBiopagoPasado))}</span>
+                  <span className="block text-[9px] text-slate-400 mt-0.5">
+                    Lote: Recargas ({formatBs(totalBiopago)}) + Vecinos ({formatBs(totalAlquilerBiopagoPasado)})
+                  </span>
+                </>
+              ) : (
+                <>{biopagoPct}% sobre {formatBs(totalBiopago)}</>
               )}
             </span>
           </div>

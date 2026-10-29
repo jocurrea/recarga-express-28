@@ -522,6 +522,7 @@ export default function Home() {
             tasaBcv={tasaBcv}
             theme={theme}
             totalPuntoRecargas={dailySummary.totalPunto}
+            totalBiopagoRecargas={dailySummary.totalBiopago}
             comisionBancariaPorcentaje={config.comisionPuntoPorcentaje || 0.75}
             transactions={dayTransactions}
             config={config}

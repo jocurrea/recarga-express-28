@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import {
   CreditCard,
+  Fingerprint,
   Plus,
   Trash2,
   Edit2,
@@ -12,11 +13,11 @@ import {
   Clock,
   User,
   Ticket,
-  DollarSign,
   ArrowRight,
   FileText,
   BadgeAlert,
-  AlertTriangle
+  AlertTriangle,
+  Layers
 } from 'lucide-react';
 import { formatBs, formatUsd } from '@/lib/calculator';
 import ReportPdfModal from '@/components/ReportPdfModal';
@@ -34,6 +35,7 @@ export default function AlquilerPuntoView({
   tasaBcv = 0,
   puntoRecargasBs = 0,
   totalPuntoRecargas = 0,
+  totalBiopagoRecargas = 0,
   config = {},
   theme = 'dark',
   onOpenPdfModal,
@@ -42,7 +44,11 @@ export default function AlquilerPuntoView({
   const isLight = theme === 'light';
   const [showPdfModal, setShowPdfModal] = useState(false);
 
+  // Filtro de visualización: 'todos' | 'punto' | 'biopago'
+  const [filterTipo, setFilterTipo] = useState('todos');
+
   // Formulario nuevo comerciante
+  const [tipo, setTipo] = useState('biopago'); // 'punto' | 'biopago' (por defecto biopago o punto)
   const [nombre, setNombre] = useState('');
   const [tickets, setTickets] = useState('1');
   const [montoTotal, setMontoTotal] = useState('');
@@ -50,6 +56,7 @@ export default function AlquilerPuntoView({
 
   // Estado para modal de edición
   const [editingItem, setEditingItem] = useState(null);
+  const [editTipo, setEditTipo] = useState('punto');
   const [editNombre, setEditNombre] = useState('');
   const [editTickets, setEditTickets] = useState('1');
   const [editMonto, setEditMonto] = useState('');
@@ -61,11 +68,14 @@ export default function AlquilerPuntoView({
   const addHandler = onAddAlquiler || onAddRecord;
   const deleteHandler = onDeleteAlquiler || onDeleteRecord;
   const updateHandler = onUpdateAlquiler || onUpdateRecord;
-  const puntoRecargas = totalPuntoRecargas || puntoRecargasBs;
+
+  const puntoRecargas = totalPuntoRecargas || puntoRecargasBs || 0;
+  const biopagoRecargas = totalBiopagoRecargas || 0;
 
   // Manejador para abrir modal de edición
   const handleStartEdit = (item) => {
     setEditingItem(item);
+    setEditTipo(item.tipo === 'biopago' ? 'biopago' : 'punto');
     setEditNombre(item.nombre || '');
     setEditTickets(String(item.tickets || 1));
     setEditMonto(String(item.montoTotal || ''));
@@ -90,6 +100,7 @@ export default function AlquilerPuntoView({
 
     if (updateHandler && editingItem) {
       updateHandler(editingItem.id, {
+        tipo: editTipo,
         nombre: editNombre.trim(),
         tickets: numTickets,
         montoTotal: numMonto,
@@ -101,24 +112,53 @@ export default function AlquilerPuntoView({
     setEditingItem(null);
   };
 
-  // Comisión configurada (por defecto 10%)
+  // Comisión configurada (10%)
   const comisionPct = 10;
 
-  // Cálculo en vivo
+  // Cálculo en vivo del formulario
   const montoNum = parseFloat(montoTotal.replace(',', '.')) || 0;
   const gananciaPreview = montoNum * (comisionPct / 100);
   const aPagarPreview = montoNum - gananciaPreview;
 
-  // Totales del día
+  // Desglose por tipo de alquiler
+  const recordsPunto = alquilerRecords.filter((r) => r.tipo !== 'biopago');
+  const recordsBiopago = alquilerRecords.filter((r) => r.tipo === 'biopago');
+
+  const puntoPasado = recordsPunto.reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
+  const puntoGanancia = recordsPunto.reduce((acc, r) => acc + Number(r.comisionBs || 0), 0);
+  const puntoAPagar = recordsPunto.reduce((acc, r) => acc + Number(r.montoPagar || 0), 0);
+  const puntoTickets = recordsPunto.reduce((acc, r) => acc + Number(r.tickets || 1), 0);
+
+  const biopagoPasado = recordsBiopago.reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
+  const biopagoGanancia = recordsBiopago.reduce((acc, r) => acc + Number(r.comisionBs || 0), 0);
+  const biopagoAPagar = recordsBiopago.reduce((acc, r) => acc + Number(r.montoPagar || 0), 0);
+  const biopagoTickets = recordsBiopago.reduce((acc, r) => acc + Number(r.tickets || 1), 0);
+
+  // Totales consolidados del día
   const totalPasado = alquilerRecords.reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
   const totalGanancia = alquilerRecords.reduce((acc, r) => acc + Number(r.comisionBs || 0), 0);
   const totalAPagar = alquilerRecords.reduce((acc, r) => acc + Number(r.montoPagar || 0), 0);
   const totalTickets = alquilerRecords.reduce((acc, r) => acc + Number(r.tickets || 1), 0);
   const totalPendientes = alquilerRecords.filter((r) => !r.transferido).length;
 
-  // Lote consolidado del punto (Recargas propias + Pasado por vecinos)
-  const totalLotePunto = puntoRecargas + totalPasado;
-  const retencionBanco075 = totalLotePunto * 0.0075;
+  // Cierre de lotes bancarios
+  const comisionPuntoBancariaPct = Number(config.comisionPuntoPorcentaje ?? 0.75);
+  const comisionBiopagoBancariaPct = Number(config.biopagoPorcentaje ?? 2.0);
+
+  // Lote Punto POS: recargas propias + vecinos en punto
+  const totalLotePunto = puntoRecargas + puntoPasado;
+  const retencionBancoPunto = totalLotePunto * (comisionPuntoBancariaPct / 100);
+
+  // Lote BioPago: recargas propias + vecinos en biopago
+  const totalLoteBiopago = biopagoRecargas + biopagoPasado;
+  const retencionBancoBiopago = totalLoteBiopago * (comisionBiopagoBancariaPct / 100);
+
+  // Lista filtrada según pestaña seleccionada
+  const displayedRecords = alquilerRecords.filter((r) => {
+    if (filterTipo === 'punto') return r.tipo !== 'biopago';
+    if (filterTipo === 'biopago') return r.tipo === 'biopago';
+    return true;
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -127,12 +167,13 @@ export default function AlquilerPuntoView({
       return;
     }
     if (!montoNum || montoNum <= 0) {
-      setError('Ingresa el monto total pasado en el punto');
+      setError(`Ingresa el monto total pasado en ${tipo === 'biopago' ? 'BioPago' : 'el Punto'}`);
       return;
     }
 
     if (addHandler) {
       addHandler({
+        tipo: tipo, // 'punto' | 'biopago'
         fecha: selectedDate,
         nombre: nombre.trim(),
         tickets: parseInt(tickets, 10) || 1,
@@ -157,22 +198,22 @@ export default function AlquilerPuntoView({
       }`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
-              <CreditCard className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold border border-orange-500/20">
+              <Layers className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className={`text-base sm:text-lg font-black tracking-tight ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}>
-                  Alquiler de Punto POS a Terceros (10%)
+                  Alquiler de Punto POS & BioPago a Terceros (10%)
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30">
                   Comisión 10%
                 </span>
               </div>
               <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Registra los tickets externos pasados por comerciantes vecinos. El dinero se entrega al día siguiente.
+                Registra los tickets externos pasados por comerciantes (tarjeta en punto o huella en BioPago). El dinero se transfiere al día siguiente.
               </p>
             </div>
           </div>
@@ -180,14 +221,14 @@ export default function AlquilerPuntoView({
           <button
             id="alquiler-pdf-report-btn"
             onClick={() => (onOpenPdfModal ? onOpenPdfModal() : setShowPdfModal(true))}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm cursor-pointer shrink-0"
           >
             <FileText className="w-4 h-4" />
             <span>Ver Reporte PDF de Cierre</span>
           </button>
         </div>
 
-        {/* 4 CARJAS DE ARQUEO DE ALQUILER Y CIERRE DE LOTE */}
+        {/* 4 CARJAS DE ARQUEO DE ALQUILER Y CIERRE DE LOTES */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           {/* Tu Ganancia por Alquiler (10%) */}
           <div className={`p-4 rounded-xl border relative overflow-hidden ${
@@ -202,9 +243,19 @@ export default function AlquilerPuntoView({
             <span className="text-[11px] font-bold font-mono text-emerald-800 dark:text-emerald-300 block mt-1">
               ≈ {formatUsd(tasaBcv > 0 ? totalGanancia / tasaBcv : 0)} USD
             </span>
-            <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
-              Tu comisión retenida en el bolsillo
-            </span>
+
+            {/* Desglose Punto vs BioPago */}
+            {(puntoGanancia > 0 || biopagoGanancia > 0) && (
+              <div className="mt-2 pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60 flex flex-wrap gap-1.5 text-[10px] font-mono">
+                <span className="text-blue-700 dark:text-blue-300 font-bold">
+                  💳 Punto: +{formatBs(puntoGanancia)}
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-amber-700 dark:text-amber-300 font-bold">
+                  👆 BioPago: +{formatBs(biopagoGanancia)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Total a Transferir Mañana (90%) */}
@@ -244,29 +295,53 @@ export default function AlquilerPuntoView({
             <span className={`text-[11px] font-mono block mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {totalTickets} tickets • {alquilerRecords.length} comercios
             </span>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Suma de papelitos de afuera
-            </span>
+            <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-mono space-y-0.5">
+              <div>💳 Punto: {puntoTickets} tix ({formatBs(puntoPasado)})</div>
+              <div>👆 BioPago: {biopagoTickets} tix ({formatBs(biopagoPasado)})</div>
+            </div>
           </div>
 
-          {/* Cierre Lote General de la Máquina */}
-          <div className={`p-4 rounded-xl border ${
+          {/* Cierres de Lotes Bancarios (Punto POS y BioPago) */}
+          <div className={`p-4 rounded-xl border space-y-2.5 ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
           }`}>
-            <span className={`text-[11px] font-bold uppercase tracking-wider block mb-1 ${
-              isLight ? 'text-slate-600' : 'text-slate-400'
-            }`}>
-              Lote General del Punto
-            </span>
-            <div className={`text-2xl font-black font-mono ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>
-              {formatBs(totalLotePunto)}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${
+                  isLight ? 'text-blue-800' : 'text-blue-300'
+                }`}>
+                  💳 Lote Punto POS
+                </span>
+                <span className="text-[10px] text-rose-600 font-mono font-bold">
+                  -{formatBs(retencionBancoPunto)} ({comisionPuntoBancariaPct}%)
+                </span>
+              </div>
+              <div className={`text-base font-black font-mono ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>
+                {formatBs(totalLotePunto)}
+              </div>
+              <span className={`text-[9px] block text-slate-400 font-mono`}>
+                Recargas ({formatBs(puntoRecargas)}) + Vecinos ({formatBs(puntoPasado)})
+              </span>
             </div>
-            <span className="text-[11px] font-mono block mt-1 text-rose-600 font-bold">
-              Banco 0.75%: -{formatBs(retencionBanco075)}
-            </span>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Recargas ({formatBs(puntoRecargasBs)}) + Vecinos
-            </span>
+
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${
+                  isLight ? 'text-amber-800' : 'text-amber-300'
+                }`}>
+                  👆 Lote BioPago
+                </span>
+                <span className="text-[10px] text-rose-600 font-mono font-bold">
+                  -{formatBs(retencionBancoBiopago)} ({comisionBiopagoBancariaPct}%)
+                </span>
+              </div>
+              <div className={`text-base font-black font-mono ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
+                {formatBs(totalLoteBiopago)}
+              </div>
+              <span className={`text-[9px] block text-slate-400 font-mono`}>
+                Recargas ({formatBs(biopagoRecargas)}) + Vecinos ({formatBs(biopagoPasado)})
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -277,11 +352,50 @@ export default function AlquilerPuntoView({
           ? 'bg-white border-slate-200 text-slate-800'
           : 'bg-[#0f172a] border-slate-800 text-slate-100'
       }`}>
-        <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${
-          isLight ? 'text-slate-700' : 'text-slate-300'
-        }`}>
-          Registrar Tickets de Comerciante
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h3 className={`text-xs font-bold uppercase tracking-wider ${
+            isLight ? 'text-slate-700' : 'text-slate-300'
+          }`}>
+            Registrar Tickets de Comerciante
+          </h3>
+
+          {/* SELECTOR DE MEDIO: PUNTO POS VS BIOPAGO */}
+          <div className={`inline-flex rounded-xl p-1 border ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-800'
+          }`}>
+            <button
+              type="button"
+              id="select-tipo-biopago"
+              onClick={() => setTipo('biopago')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                tipo === 'biopago'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : isLight
+                  ? 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Fingerprint className="w-4 h-4" />
+              <span>BioPago (Huella)</span>
+            </button>
+
+            <button
+              type="button"
+              id="select-tipo-punto"
+              onClick={() => setTipo('punto')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                tipo === 'punto'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : isLight
+                  ? 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>Punto POS (Tarjeta)</span>
+            </button>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -300,7 +414,9 @@ export default function AlquilerPuntoView({
                   placeholder="Ej: Juan, Carnicería María, etc."
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+                  className={`w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border focus:outline-none focus:ring-2 ${
+                    tipo === 'biopago' ? 'focus:ring-amber-500' : 'focus:ring-blue-500'
+                  } ${
                     isLight
                       ? 'bg-slate-50 border-slate-300 text-slate-900'
                       : 'bg-slate-950 border-slate-700 text-white'
@@ -314,7 +430,9 @@ export default function AlquilerPuntoView({
               <label className={`block text-xs font-semibold mb-1 ${
                 isLight ? 'text-slate-700' : 'text-slate-300'
               }`}>
-                N° de Tickets Pasados:
+                {tipo === 'biopago'
+                  ? 'N° de Tickets Manuales (BioPago):'
+                  : 'N° de Vouchers / Tickets (Punto):'}
               </label>
               <div className="relative">
                 <Ticket className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -325,7 +443,9 @@ export default function AlquilerPuntoView({
                   step="1"
                   value={tickets}
                   onChange={(e) => setTickets(e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+                  className={`w-full pl-9 pr-3 py-2 text-xs font-bold rounded-xl border focus:outline-none focus:ring-2 ${
+                    tipo === 'biopago' ? 'focus:ring-amber-500' : 'focus:ring-blue-500'
+                  } ${
                     isLight
                       ? 'bg-slate-50 border-slate-300 text-slate-900'
                       : 'bg-slate-950 border-slate-700 text-white'
@@ -339,7 +459,9 @@ export default function AlquilerPuntoView({
               <label className={`block text-xs font-semibold mb-1 ${
                 isLight ? 'text-slate-700' : 'text-slate-300'
               }`}>
-                Monto Total en el Punto (Bs.):
+                {tipo === 'biopago'
+                  ? 'Monto Total Pasado en BioPago (Bs.):'
+                  : 'Monto Total Pasado en el Punto (Bs.):'}
               </label>
               <div className="relative">
                 <input
@@ -349,13 +471,15 @@ export default function AlquilerPuntoView({
                   placeholder="Ej: 2000"
                   value={montoTotal}
                   onChange={(e) => setMontoTotal(e.target.value)}
-                  className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+                  className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-2 ${
+                    tipo === 'biopago' ? 'focus:ring-amber-500' : 'focus:ring-blue-500'
+                  } ${
                     isLight
                       ? 'bg-slate-50 border-slate-300 text-slate-900'
                       : 'bg-slate-950 border-slate-700 text-white'
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
                   Bs.
                 </span>
               </div>
@@ -367,10 +491,20 @@ export default function AlquilerPuntoView({
             <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in duration-150 ${
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
             }`}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                  tipo === 'biopago'
+                    ? 'bg-amber-500/10 text-amber-600 border border-amber-500/30'
+                    : 'bg-blue-500/10 text-blue-600 border border-blue-500/30'
+                }`}>
+                  {tipo === 'biopago' ? <Fingerprint className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                  {tipo === 'biopago' ? 'BioPago' : 'Punto POS'}
+                </span>
                 <span className="text-slate-500">Comerciante: <strong>{nombre || 'Vecino'}</strong></span>
                 <span>•</span>
-                <span className="text-slate-500">{tickets || 1} tickets</span>
+                <span className="text-slate-500">
+                  {tickets || 1} {tipo === 'biopago' ? 'tickets manuales' : 'tickets'}
+                </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 font-mono">
@@ -399,38 +533,89 @@ export default function AlquilerPuntoView({
             <button
               id="submit-comerciante-btn"
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-sm cursor-pointer ${
+                tipo === 'biopago'
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               <Plus className="w-4 h-4" />
-              <span>Registrar Tickets de Comerciante</span>
+              <span>
+                {tipo === 'biopago'
+                  ? '+ Registrar Tickets de BioPago'
+                  : '+ Registrar Tickets de Punto POS'}
+              </span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* TABLA DE COMERCIANTES REGISTRADOS */}
+      {/* TABLA DE COMERCIANTES REGISTRADOS CON FILTRO */}
       <div className={`rounded-2xl border overflow-hidden transition-colors shadow-sm ${
         isLight
           ? 'bg-white border-slate-200 text-slate-800'
           : 'bg-[#0f172a] border-slate-800 text-slate-100'
       }`}>
-        <div className={`p-4 border-b flex items-center justify-between ${
+        <div className={`p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
           isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
         }`}>
           <div>
-            <h3 className={`text-xs font-bold uppercase tracking-wider ${
-              isLight ? 'text-slate-900' : 'text-white'
-            }`}>
-              Comerciantes del Día ({alquilerRecords.length})
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}>
+                Comerciantes del Día ({alquilerRecords.length})
+              </h3>
+            </div>
             <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Desglose de montos pasados, comisión retenida y estado de transferencia
+              Desglose de tickets pasados por comerciantes en Punto POS y BioPago
             </p>
           </div>
 
-          <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-            Ganancia total: +{formatBs(totalGanancia)}
-          </span>
+          {/* BOTONES DE FILTRO: TODOS, PUNTO POS, BIOPAGO */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setFilterTipo('todos')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                filterTipo === 'todos'
+                  ? 'bg-orange-600 text-white shadow-2xs'
+                  : isLight
+                  ? 'bg-slate-200/80 text-slate-700 hover:bg-slate-300'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Todos ({alquilerRecords.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTipo('punto')}
+              className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                filterTipo === 'punto'
+                  ? 'bg-blue-600 text-white shadow-2xs'
+                  : isLight
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                  : 'bg-blue-950/40 text-blue-300 border border-blue-800 hover:bg-blue-900/50'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Punto ({recordsPunto.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTipo('biopago')}
+              className={`flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                filterTipo === 'biopago'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : isLight
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                  : 'bg-amber-950/40 text-amber-300 border border-amber-800 hover:bg-amber-900/50'
+              }`}
+            >
+              <Fingerprint className="w-3.5 h-3.5" />
+              <span>BioPago ({recordsBiopago.length})</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -440,6 +625,7 @@ export default function AlquilerPuntoView({
             }`}>
               <tr>
                 <th className="py-3 px-4 font-sans">Hora</th>
+                <th className="py-3 px-4 font-sans">Medio</th>
                 <th className="py-3 px-4 font-sans">Comerciante / Negocio</th>
                 <th className="py-3 px-4 text-center font-sans">Tickets</th>
                 <th className="py-3 px-4 text-right">Monto Pasado</th>
@@ -450,109 +636,130 @@ export default function AlquilerPuntoView({
               </tr>
             </thead>
             <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-slate-800'}`}>
-              {alquilerRecords.length === 0 ? (
+              {displayedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center font-sans">
+                  <td colSpan={9} className="py-10 text-center font-sans">
                     <p className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                      No hay alquileres de punto registrados en esta fecha.
+                      {filterTipo === 'todos'
+                        ? 'No hay alquileres registrados en esta fecha.'
+                        : filterTipo === 'biopago'
+                        ? 'No hay registros de BioPago para esta fecha.'
+                        : 'No hay registros de Punto POS para esta fecha.'}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Usa el formulario de arriba para ingresar los tickets de Juan, María u otros comerciantes.
+                      Usa el formulario de arriba para ingresar los tickets manuales de BioPago o del Punto POS.
                     </p>
                   </td>
                 </tr>
               ) : (
-                alquilerRecords.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`transition ${isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/40'}`}
-                  >
-                    <td className={`py-3 px-4 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {item.hora || '-'}
-                    </td>
-                    <td className={`py-3 px-4 font-sans font-bold text-sm ${
-                      isLight ? 'text-slate-900' : 'text-white'
-                    }`}>
-                      {item.nombre}
-                    </td>
-                    <td className="py-3 px-4 text-center font-bold">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
-                        isLight
-                          ? 'bg-orange-100 text-orange-800 border-orange-300'
-                          : 'bg-orange-950/80 text-orange-200 border-orange-700'
+                displayedRecords.map((item) => {
+                  const isItemBiopago = item.tipo === 'biopago';
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition ${isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/40'}`}
+                    >
+                      <td className={`py-3 px-4 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {item.hora || '-'}
+                      </td>
+                      <td className="py-3 px-4 font-sans">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                          isItemBiopago
+                            ? isLight
+                              ? 'bg-amber-100 text-amber-800 border-amber-300'
+                              : 'bg-amber-950/80 text-amber-300 border-amber-700'
+                            : isLight
+                            ? 'bg-blue-100 text-blue-800 border-blue-300'
+                            : 'bg-blue-950/80 text-blue-300 border-blue-700'
+                        }`}>
+                          {isItemBiopago ? <Fingerprint className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+                          <span>{isItemBiopago ? 'BioPago' : 'Punto POS'}</span>
+                        </span>
+                      </td>
+                      <td className={`py-3 px-4 font-sans font-bold text-sm ${
+                        isLight ? 'text-slate-900' : 'text-white'
                       }`}>
-                        {item.tickets} {item.tickets === 1 ? 'ticket' : 'tickets'}
-                      </span>
-                    </td>
-                    <td className={`py-3 px-4 text-right font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {formatBs(item.montoTotal)}
-                    </td>
-                    <td className={`py-3 px-4 text-right font-bold ${
-                      isLight ? 'text-emerald-700' : 'text-emerald-400'
-                    }`}>
-                      +{formatBs(item.comisionBs)}
-                    </td>
-                    <td className={`py-3 px-4 text-right font-bold ${
-                      isLight ? 'text-slate-900' : 'text-white'
-                    }`}>
-                      <span className={item.transferido ? 'line-through opacity-50' : ''}>
-                        {formatBs(item.montoPagar)}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center font-sans">
-                      <button
-                        onClick={() => onToggleTransferido(item.id)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-xs ${
-                          item.transferido
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                            : 'bg-amber-600 hover:bg-amber-700 text-white'
-                        }`}
-                        title="Clic para cambiar estado de transferencia"
-                      >
-                        {item.transferido ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
-                            <span>Transferido</span>
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-white shrink-0" />
-                            <span>Por transferir mañana</span>
-                          </>
-                        )}
-                      </button>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                        {item.nombre}
+                      </td>
+                      <td className="py-3 px-4 text-center font-bold">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold border ${
+                          isLight
+                            ? 'bg-slate-100 text-slate-700 border-slate-300'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}>
+                          {item.tickets} {isItemBiopago ? (item.tickets === 1 ? 'manual' : 'manuales') : (item.tickets === 1 ? 'ticket' : 'tickets')}
+                        </span>
+                      </td>
+                      <td className={`py-3 px-4 text-right font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {formatBs(item.montoTotal)}
+                      </td>
+                      <td className={`py-3 px-4 text-right font-bold ${
+                        isLight ? 'text-emerald-700' : 'text-emerald-400'
+                      }`}>
+                        +{formatBs(item.comisionBs)}
+                      </td>
+                      <td className={`py-3 px-4 text-right font-bold ${
+                        isLight ? 'text-slate-900' : 'text-white'
+                      }`}>
+                        <span className={item.transferido ? 'line-through opacity-50' : ''}>
+                          {formatBs(item.montoPagar)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center font-sans">
                         <button
-                          onClick={() => handleStartEdit(item)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-500/10 transition cursor-pointer"
-                          title="Editar comerciante y monto"
+                          onClick={() => onToggleTransferido(item.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-xs ${
+                            item.transferido
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              : 'bg-amber-600 hover:bg-amber-700 text-white'
+                          }`}
+                          title="Clic para alternar estado de entrega"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          {item.transferido ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
+                              <span>Transferido</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-3.5 h-3.5 text-white shrink-0" />
+                              <span>Por transferir mañana</span>
+                            </>
+                          )}
                         </button>
-                        <button
-                          onClick={() => setDeletingRecord(item)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                          title="Eliminar registro de alquiler de punto"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleStartEdit(item)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-500/10 transition cursor-pointer"
+                            title="Editar comerciante y monto"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingRecord(item)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
 
             {/* FILA DE TOTALES */}
-            {alquilerRecords.length > 0 && (
+            {displayedRecords.length > 0 && (
               <tfoot className={`border-t-2 font-bold ${
                 isLight ? 'bg-slate-50 text-slate-900 border-slate-200' : 'bg-slate-900 text-white border-slate-800'
               }`}>
                 <tr>
-                  <td colSpan={2} className="py-3 px-4 font-sans uppercase text-xs">
-                    TOTALES ({alquilerRecords.length} comercios)
+                  <td colSpan={3} className="py-3 px-4 font-sans uppercase text-xs">
+                    TOTALES ({displayedRecords.length} {displayedRecords.length === 1 ? 'registro' : 'registros'})
                   </td>
                   <td className="py-3 px-4 text-center font-black">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
@@ -560,19 +767,19 @@ export default function AlquilerPuntoView({
                         ? 'bg-slate-200 text-slate-800 border-slate-300'
                         : 'bg-slate-800 text-slate-200 border-slate-700'
                     }`}>
-                      {totalTickets} {totalTickets === 1 ? 'ticket' : 'tickets'}
+                      {displayedRecords.reduce((acc, r) => acc + Number(r.tickets || 1), 0)} tix
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right font-black">
-                    {formatBs(totalPasado)}
+                    {formatBs(displayedRecords.reduce((acc, r) => acc + Number(r.montoTotal || 0), 0))}
                   </td>
                   <td className={`py-3 px-4 text-right font-black text-sm ${
                     isLight ? 'text-emerald-700' : 'text-emerald-400'
                   }`}>
-                    +{formatBs(totalGanancia)}
+                    +{formatBs(displayedRecords.reduce((acc, r) => acc + Number(r.comisionBs || 0), 0))}
                   </td>
                   <td className="py-3 px-4 text-right font-black text-sm">
-                    {formatBs(totalAPagar)}
+                    {formatBs(displayedRecords.reduce((acc, r) => acc + Number(r.montoPagar || 0), 0))}
                   </td>
                   <td colSpan={2}></td>
                 </tr>
@@ -582,7 +789,7 @@ export default function AlquilerPuntoView({
         </div>
       </div>
 
-      {/* MODAL REPORTE PDF DE CIERRE CON ALQUILER DE PUNTO */}
+      {/* MODAL REPORTE PDF DE CIERRE */}
       {showPdfModal && (
         <ReportPdfModal
           isOpen={showPdfModal}
@@ -596,7 +803,7 @@ export default function AlquilerPuntoView({
         />
       )}
 
-      {/* MODAL DE EDICIÓN DE COMERCIANTE / ALQUILER DE PUNTO */}
+      {/* MODAL DE EDICIÓN DE COMERCIANTE */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-all ${
@@ -604,7 +811,6 @@ export default function AlquilerPuntoView({
               ? 'bg-white border-slate-200 text-slate-800'
               : 'bg-[#0f172a] border-slate-800 text-slate-100'
           }`}>
-            {/* Header del modal */}
             <div className={`px-5 py-4 border-b flex items-center justify-between ${
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
             }`}>
@@ -613,9 +819,9 @@ export default function AlquilerPuntoView({
                   <Edit2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold tracking-tight">Editar Comerciante / Registro</h3>
+                  <h3 className="text-sm font-bold tracking-tight">Editar Registro de Alquiler</h3>
                   <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Modifica los datos del ticket pasado en el punto
+                    Modifica los datos del pase de Punto POS o BioPago
                   </p>
                 </div>
               </div>
@@ -631,7 +837,6 @@ export default function AlquilerPuntoView({
               </button>
             </div>
 
-            {/* Formulario de edición */}
             <form onSubmit={handleSaveEdit} className="p-5 space-y-4">
               {editError && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold flex items-center gap-2">
@@ -639,6 +844,43 @@ export default function AlquilerPuntoView({
                   <span>{editError}</span>
                 </div>
               )}
+
+              {/* Selector Dispositivo */}
+              <div>
+                <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Dispositivo / Medio
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditTipo('biopago')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      editTipo === 'biopago'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : isLight
+                        ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Fingerprint className="w-4 h-4" />
+                    <span>BioPago (Huella)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTipo('punto')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      editTipo === 'punto'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : isLight
+                        ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Punto POS</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Nombre Comerciante */}
               <div>
@@ -663,7 +905,7 @@ export default function AlquilerPuntoView({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                    Tickets
+                    {editTipo === 'biopago' ? 'Tickets Manuales' : 'Tickets / Vouchers'}
                   </label>
                   <input
                     type="number"
@@ -702,7 +944,7 @@ export default function AlquilerPuntoView({
               {/* Monto Pasado */}
               <div>
                 <label className={`block text-xs font-bold uppercase mb-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                  Monto Pasado en Punto (Bs.)
+                  Monto Pasado en {editTipo === 'biopago' ? 'BioPago' : 'Punto'} (Bs.)
                 </label>
                 <input
                   type="number"
@@ -803,7 +1045,8 @@ export default function AlquilerPuntoView({
           </div>
         </div>
       )}
-      {/* Modal Confirmación de Eliminar Registro de Alquiler de Punto */}
+
+      {/* MODAL CONFIRMACIÓN DE ELIMINAR REGISTRO */}
       {deletingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
           <div className={`border rounded-2xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl transition-colors ${
@@ -818,15 +1061,23 @@ export default function AlquilerPuntoView({
                   ¿Eliminar registro de alquiler?
                 </h3>
                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Se eliminará este pase de tarjeta del arqueo del punto de venta.
+                  Se eliminará este pase de {deletingRecord.tipo === 'biopago' ? 'BioPago' : 'Punto POS'} del arqueo del día.
                 </p>
               </div>
             </div>
 
-            {/* Ficha de datos del registro */}
             <div className={`rounded-xl p-3.5 border space-y-2 text-xs ${
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-800'
             }`}>
+              <div className="flex items-center justify-between">
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Medio:</span>
+                <span className={`font-bold font-sans text-xs px-2 py-0.5 rounded-full ${
+                  deletingRecord.tipo === 'biopago' ? 'bg-amber-500/10 text-amber-600' : 'bg-blue-500/10 text-blue-600'
+                }`}>
+                  {deletingRecord.tipo === 'biopago' ? '👆 BioPago (Huella)' : '💳 Punto POS (Tarjeta)'}
+                </span>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Comerciante / Vecino:</span>
                 <span className="font-bold text-sm text-rose-600 dark:text-rose-400">
@@ -835,9 +1086,9 @@ export default function AlquilerPuntoView({
               </div>
 
               <div className="flex items-center justify-between">
-                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Vouchers / Tickets:</span>
+                <span className={`font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Tickets:</span>
                 <span className="font-mono font-bold">
-                  {deletingRecord.tickets || 1} {Number(deletingRecord.tickets || 1) === 1 ? 'ticket' : 'tickets'}
+                  {deletingRecord.tickets || 1} {deletingRecord.tipo === 'biopago' ? 'manuales' : 'vouchers'}
                 </span>
               </div>
 
@@ -853,24 +1104,23 @@ export default function AlquilerPuntoView({
               }`}>
                 <div>
                   <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Comisión Ganada ({deletingRecord.comisionPct || 10}%)
+                    Comisión Ganada ({deletingRecord.comisionPorcentaje || 10}%)
                   </span>
                   <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                    +{formatBs((Number(deletingRecord.montoTotal || 0) * Number(deletingRecord.comisionPct || 10)) / 100)}
+                    +{formatBs(deletingRecord.comisionBs || 0)}
                   </span>
                 </div>
                 <div className="text-right">
                   <span className={`text-[11px] block font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Monto Neto a Transferir
+                    Monto a Transferir
                   </span>
                   <span className="font-mono font-black text-sm text-sky-600 dark:text-sky-400">
-                    {formatBs(Number(deletingRecord.montoTotal || 0) - (Number(deletingRecord.montoTotal || 0) * Number(deletingRecord.comisionPct || 10)) / 100)}
+                    {formatBs(deletingRecord.montoPagar || 0)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 type="button"

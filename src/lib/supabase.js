@@ -115,6 +115,7 @@ export async function deleteTransactionFromSupabase(id) {
 export function mapRowToAlquiler(row) {
   return {
     id: row.id,
+    tipo: row.tipo === 'biopago' ? 'biopago' : 'punto',
     nombre: row.nombre,
     fecha: row.fecha,
     hora: row.hora || '',
@@ -128,8 +129,9 @@ export function mapRowToAlquiler(row) {
 }
 
 export function mapAlquilerToRow(item) {
-  return {
+  const row = {
     id: item.id,
+    tipo: item.tipo === 'biopago' ? 'biopago' : 'punto',
     nombre: item.nombre,
     fecha: item.fecha,
     hora: item.hora || '',
@@ -140,6 +142,7 @@ export function mapAlquilerToRow(item) {
     tickets: Number(item.tickets || 1),
     transferido: Boolean(item.transferido)
   };
+  return row;
 }
 
 export async function fetchAlquilerFromSupabase() {
@@ -165,7 +168,12 @@ export async function syncAlquilerToSupabase(item) {
   if (!supabase) return;
   try {
     const row = mapAlquilerToRow(item);
-    await supabase.from('alquiler_punto').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase.from('alquiler_punto').upsert([row], { onConflict: 'id' });
+    if (error && error.message && error.message.includes('tipo')) {
+      // Si la columna tipo aún no se ha agregado en Supabase, reintentar sin 'tipo'
+      const { tipo, ...rowWithoutTipo } = row;
+      await supabase.from('alquiler_punto').upsert([rowWithoutTipo], { onConflict: 'id' });
+    }
   } catch (err) {
     console.warn('Error syncing alquiler to Supabase:', err);
   }

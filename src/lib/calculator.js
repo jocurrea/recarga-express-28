@@ -74,13 +74,22 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     totalPagoDirectoCobrado: 0,
     gananciaPagoDirecto: 0,
     countPagoDirecto: 0,
-    // Alquiler de Punto POS a Terceros (10%)
+    // Alquiler de Punto POS y BioPago a Terceros (10%)
     totalAlquilerPasado: 0,
     totalAlquilerGananciaBs: 0,
     totalAlquilerPagarBs: 0,
     countAlquilerComerciantes: registrosAlquiler.length,
     countAlquilerTickets: 0,
+    totalAlquilerPuntoPasado: 0,
+    totalAlquilerPuntoGananciaBs: 0,
+    totalAlquilerPuntoPagarBs: 0,
+    countAlquilerPuntoTickets: 0,
+    totalAlquilerBiopagoPasado: 0,
+    totalAlquilerBiopagoGananciaBs: 0,
+    totalAlquilerBiopagoPagarBs: 0,
+    countAlquilerBiopagoTickets: 0,
     totalPuntoLoteGeneral: 0,
+    totalBiopagoLoteGeneral: 0,
     // Deducciones y Costos Bancarios
     deduccionComisionPuntoBs: 0,
     deduccionBiopagoBs: 0,
@@ -138,21 +147,37 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     }
   }
 
-  // Procesar alquileres de punto a comerciantes externos (10% comisión)
+  // Procesar alquileres de punto y biopago a comerciantes externos (10% comisión)
   for (const r of registrosAlquiler) {
     const tot = Number(r.montoTotal || 0);
     const gan = Number(r.comisionBs || 0);
     const pag = Number(r.montoPagar || 0);
     const tix = Number(r.tickets || 1);
+    const isBiopago = r.tipo === 'biopago';
 
     summary.totalAlquilerPasado += tot;
     summary.totalAlquilerGananciaBs += gan;
     summary.totalAlquilerPagarBs += pag;
     summary.countAlquilerTickets += tix;
+
+    if (isBiopago) {
+      summary.totalAlquilerBiopagoPasado += tot;
+      summary.totalAlquilerBiopagoGananciaBs += gan;
+      summary.totalAlquilerBiopagoPagarBs += pag;
+      summary.countAlquilerBiopagoTickets += tix;
+    } else {
+      summary.totalAlquilerPuntoPasado += tot;
+      summary.totalAlquilerPuntoGananciaBs += gan;
+      summary.totalAlquilerPuntoPagarBs += pag;
+      summary.countAlquilerPuntoTickets += tix;
+    }
   }
 
-  // Cierre de Lote General del Punto (Recargas propias por punto + Pasado por comerciantes externos)
-  summary.totalPuntoLoteGeneral = summary.totalPunto + summary.totalAlquilerPasado;
+  // Cierre de Lote General del Punto (Recargas propias por punto + Pasado por comerciantes en Punto POS)
+  summary.totalPuntoLoteGeneral = summary.totalPunto + summary.totalAlquilerPuntoPasado;
+
+  // Cierre de Lote General de BioPago (Recargas propias por biopago + Pasado por comerciantes en BioPago)
+  summary.totalBiopagoLoteGeneral = summary.totalBiopago + summary.totalAlquilerBiopagoPasado;
 
   // 1. Deducción por comisión de Punto POS (el banco descuenta 0.75% del total del lote pasado por el punto)
   const comisionPuntoPct = Number(config.comisionPuntoPorcentaje ?? 0.75);
@@ -160,10 +185,10 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     summary.deduccionComisionPuntoBs = summary.totalPuntoLoteGeneral * (comisionPuntoPct / 100);
   }
 
-  // 2. Deducción por uso de BioPago (comisión retenida por huella)
+  // 2. Deducción por uso de BioPago (comisión retenida por huella sobre el total del lote BioPago)
   const bioPct = Number(config.biopagoPorcentaje ?? 2.0);
-  if (bioPct > 0 && summary.totalBiopago > 0) {
-    summary.deduccionBiopagoBs = summary.totalBiopago * (bioPct / 100);
+  if (bioPct > 0 && summary.totalBiopagoLoteGeneral > 0) {
+    summary.deduccionBiopagoBs = summary.totalBiopagoLoteGeneral * (bioPct / 100);
   }
 
   // 3. Deducción por alquiler diario fijo del punto POS (solo si el usuario activa 'deducirAlquilerPunto')

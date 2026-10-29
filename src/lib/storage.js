@@ -280,9 +280,11 @@ export function addAlquilerPunto(data) {
   const comisionPct = Number(data.comisionPorcentaje ?? 10);
   const comisionBs = monto * (comisionPct / 100);
   const montoPagar = monto - comisionBs;
+  const tipo = data.tipo === 'biopago' ? 'biopago' : 'punto';
 
   const newItem = {
     id: 'alq-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+    tipo: tipo, // 'punto' | 'biopago'
     fecha: data.fecha || getTodayDateStr(),
     hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
     nombre: (data.nombre || '').trim(),
@@ -329,10 +331,14 @@ export function updateAlquilerPunto(id, updatedFields) {
       );
       const comisionBs = monto * (comisionPct / 100);
       const montoPagar = monto - comisionBs;
+      const tipo = updatedFields.tipo !== undefined
+        ? (updatedFields.tipo === 'biopago' ? 'biopago' : 'punto')
+        : (item.tipo === 'biopago' ? 'biopago' : 'punto');
 
       updatedRecord = {
         ...item,
         ...updatedFields,
+        tipo: tipo,
         montoTotal: monto,
         comisionPorcentaje: comisionPct,
         comisionBs: Math.round(comisionBs * 100) / 100,

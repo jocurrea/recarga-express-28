@@ -25,11 +25,14 @@ export default function ReportPdfModal({
   const now = new Date();
   const printTimestamp = now.toLocaleDateString('es-VE') + ' ' + now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
 
-  // Cálculos de alquiler de punto a terceros (10%)
+  // Cálculos de alquiler de punto y BioPago a terceros (10%)
   const totalAlquilerPasado = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
   const totalAlquilerGanancia = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.comisionBs || 0), 0);
   const totalAlquilerPagar = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.montoPagar || 0), 0);
   const totalAlquilerTickets = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.tickets || 1), 0);
+
+  const totalAlquilerPuntoPasado = (alquilerRecords || []).filter(r => r.tipo !== 'biopago').reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
+  const totalAlquilerBiopagoPasado = (alquilerRecords || []).filter(r => r.tipo === 'biopago').reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
 
   // Cálculos de saldo vendido y cobrado por plataforma (Payall vs PagoDirecto)
   const payallTxs = (transactions || []).filter(t => (t.plataforma || 'payall').toLowerCase() !== 'pagodirecto');
@@ -44,9 +47,10 @@ export default function ReportPdfModal({
   const pagodirectoGanancia = pagodirectoCobrado - pagodirectoSaldoVendido;
 
   // Cálculos consolidados para el reporte diario
-  const lotePuntoTotal = Number(totals.punto || 0) + totalAlquilerPasado;
-  const comisionPuntoBs = lotePuntoTotal * 0.0075; // 0.75% del banco sobre el lote total
-  const comisionBiopagoBs = Number(totals.biopago || 0) * 0.02;
+  const lotePuntoTotal = Number(totals.punto || 0) + totalAlquilerPuntoPasado;
+  const loteBiopagoTotal = Number(totals.biopago || 0) + totalAlquilerBiopagoPasado;
+  const comisionPuntoBs = lotePuntoTotal * 0.0075; // 0.75% del banco sobre el lote del punto
+  const comisionBiopagoBs = loteBiopagoTotal * 0.02; // 2% del banco sobre el lote de BioPago
   const totalDeducciones = comisionPuntoBs + comisionBiopagoBs;
 
   const gananciaBrutaTotal = Number(totals.ganancia || 0) + totalAlquilerGanancia;
@@ -309,7 +313,7 @@ export default function ReportPdfModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between border-b border-slate-300 pb-1">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 font-sans">
-                    Alquiler de Punto POS a Terceros (Comisión 10%)
+                    Alquiler de Punto POS y BioPago a Terceros (Comisión 10%)
                   </h3>
                   <span className="text-[11px] font-mono font-bold text-emerald-800">
                     Tu Ganancia: +{formatBs(totalAlquilerGanancia)}
@@ -319,9 +323,10 @@ export default function ReportPdfModal({
                 <table className="w-full text-left text-[11px] font-mono border border-slate-300">
                   <thead className="bg-slate-100 text-slate-900 font-bold uppercase text-[10px] border-b border-slate-300">
                     <tr>
+                      <th className="py-2 px-2">Dispositivo</th>
                       <th className="py-2 px-2">Comerciante / Negocio</th>
                       <th className="py-2 px-2 text-center">N° Tickets</th>
-                      <th className="py-2 px-2 text-right">Total Pasado en Punto</th>
+                      <th className="py-2 px-2 text-right">Total Pasado</th>
                       <th className="py-2 px-2 text-right">Tu Comisión (10%)</th>
                       <th className="py-2 px-2 text-right">A Transferir Mañana (90%)</th>
                       <th className="py-2 px-2 text-center">Estado</th>
@@ -330,8 +335,13 @@ export default function ReportPdfModal({
                   <tbody className="divide-y divide-slate-200">
                     {alquilerRecords.map((r, idx) => (
                       <tr key={r.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="py-1.5 px-2 font-bold font-sans text-[10px]">
+                          {r.tipo === 'biopago' ? '👆 BioPago' : '💳 Punto POS'}
+                        </td>
                         <td className="py-1.5 px-2 font-bold font-sans text-slate-900">{r.nombre}</td>
-                        <td className="py-1.5 px-2 text-center font-bold">{r.tickets}</td>
+                        <td className="py-1.5 px-2 text-center font-bold">
+                          {r.tickets} {r.tipo === 'biopago' ? 'manuales' : 'vouchers'}
+                        </td>
                         <td className="py-1.5 px-2 text-right font-black">{formatBs(r.montoTotal)}</td>
                         <td className="py-1.5 px-2 text-right font-bold text-emerald-700">+{formatBs(r.comisionBs)}</td>
                         <td className="py-1.5 px-2 text-right font-bold">{formatBs(r.montoPagar)}</td>
@@ -343,7 +353,7 @@ export default function ReportPdfModal({
                   </tbody>
                   <tfoot className="border-t-2 border-slate-800 bg-slate-100 font-bold">
                     <tr>
-                      <td className="py-2 px-2 uppercase font-sans text-[10px]">TOTALES EXTERNOS</td>
+                      <td colSpan={2} className="py-2 px-2 uppercase font-sans text-[10px]">TOTALES EXTERNOS</td>
                       <td className="py-2 px-2 text-center font-black">{totalAlquilerTickets} tickets</td>
                       <td className="py-2 px-2 text-right text-slate-950 font-black">{formatBs(totalAlquilerPasado)}</td>
                       <td className="py-2 px-2 text-right text-emerald-800 font-black">+{formatBs(totalAlquilerGanancia)}</td>

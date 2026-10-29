@@ -423,7 +423,7 @@ export default function Navbar({
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <span>Alquiler Punto (10%)</span>
+              <span>Alquiler POS y BioPago (10%)</span>
               {alquilerCount > 0 && (
                 <span className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded-full ${
                   activeTab === 'alquiler'

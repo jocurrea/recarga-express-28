@@ -28,9 +28,10 @@ CREATE TABLE IF NOT EXISTS transacciones (
 CREATE INDEX IF NOT EXISTS idx_transacciones_fecha ON transacciones(fecha);
 CREATE INDEX IF NOT EXISTS idx_transacciones_estado ON transacciones(estado_pago);
 
--- 2. Tabla de Alquiler de Punto POS a Terceros (10%)
+-- 2. Tabla de Alquiler de Punto POS y BioPago a Terceros (10%)
 CREATE TABLE IF NOT EXISTS alquiler_punto (
   id TEXT PRIMARY KEY,
+  tipo TEXT DEFAULT 'punto', -- 'punto' | 'biopago'
   nombre TEXT NOT NULL,
   fecha TEXT NOT NULL, -- Formato YYYY-MM-DD
   hora TEXT,
@@ -42,6 +43,9 @@ CREATE TABLE IF NOT EXISTS alquiler_punto (
   transferido BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migración segura para agregar columna tipo si la tabla ya existía
+ALTER TABLE alquiler_punto ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'punto';
 
 CREATE INDEX IF NOT EXISTS idx_alquiler_fecha ON alquiler_punto(fecha);
 
