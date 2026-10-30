@@ -110,25 +110,28 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
   };
 
   for (const t of transacciones) {
+    const isAbono = Boolean(t.isAbono || t.operadoraId === 'abono' || (t.operadoraNombre && t.operadoraNombre.toLowerCase().startsWith('abono')));
     const recarga = Number(t.montoRecarga || 0);
     const cobrado = Number(t.montoCobrado || 0);
-    const ganancia = cobrado - recarga;
+    const ganancia = isAbono ? 0 : (cobrado - recarga);
     const plat = (t.plataforma || 'payall').toLowerCase();
 
     summary.totalMontoRecarga += recarga;
     summary.totalCobrado += cobrado;
     summary.gananciaBruta += ganancia;
 
-    if (plat === 'pagodirecto') {
-      summary.totalPagoDirectoRecargas += recarga;
-      summary.totalPagoDirectoCobrado += cobrado;
-      summary.gananciaPagoDirecto += ganancia;
-      summary.countPagoDirecto += 1;
-    } else {
-      summary.totalPayallRecargas += recarga;
-      summary.totalPayallCobrado += cobrado;
-      summary.gananciaPayall += ganancia;
-      summary.countPayall += 1;
+    if (!isAbono) {
+      if (plat === 'pagodirecto') {
+        summary.totalPagoDirectoRecargas += recarga;
+        summary.totalPagoDirectoCobrado += cobrado;
+        summary.gananciaPagoDirecto += ganancia;
+        summary.countPagoDirecto += 1;
+      } else {
+        summary.totalPayallRecargas += recarga;
+        summary.totalPayallCobrado += cobrado;
+        summary.gananciaPayall += ganancia;
+        summary.countPayall += 1;
+      }
     }
 
     if (t.metodo === 'mixto') {

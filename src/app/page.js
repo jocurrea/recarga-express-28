@@ -29,6 +29,7 @@ import {
   updateTransaction,
   deleteTransaction,
   toggleEstadoPago,
+  abonarTransaccion,
   clearTransactionsByDate,
   clearAllTransactions,
   getAllAlquilerPunto,
@@ -259,6 +260,12 @@ export default function Home() {
   // Manejador para alternar estado de pago (fiado/pendiente <-> pagado)
   const handleToggleEstadoPago = (id, nuevoMetodo = null) => {
     const updated = toggleEstadoPago(id, nuevoMetodo);
+    setAllTransactions(updated);
+  };
+
+  // Manejador para registrar abono parcial a una deuda
+  const handleAbonarDeuda = (id, montoAbono, metodo) => {
+    const updated = abonarTransaccion(id, montoAbono, metodo, selectedDate);
     setAllTransactions(updated);
   };
 
@@ -501,6 +508,7 @@ export default function Home() {
             onDeleteTransaction={handleDeleteTransaction}
             onUpdateTransaction={handleUpdateTransaction}
             onToggleEstadoPago={handleToggleEstadoPago}
+            onAbonarDeuda={handleAbonarDeuda}
             onClearDateTransactions={handleClearDateTransactions}
             selectedDate={selectedDate}
             theme={theme}
@@ -539,6 +547,7 @@ export default function Home() {
             config={config}
             theme={theme}
             onToggleEstadoPago={handleToggleEstadoPago}
+            onAbonarDeuda={handleAbonarDeuda}
           />
         )}
       </main>
