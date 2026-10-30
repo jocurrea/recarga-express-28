@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { formatBs, formatUsd, validateMontoOperadora, compareTransactionsByTime } from '@/lib/calculator';
 import { exportDailyTransactions } from '@/lib/excelExport';
+import { getAbonosForTransaction } from '@/lib/storage';
 import { OPERADORAS, METODOS_PAGO } from '@/lib/constants';
 import { Trash2, Edit2, Search, Filter, Download, AlertTriangle, FileSpreadsheet, X, Check, FileText, Clock, CheckCircle2, User, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
 import ReportPdfModal from './ReportPdfModal';
 
 export default function DailyTable({
   transactions = [],
+  allTransactions = [],
   onDeleteTransaction,
   onUpdateTransaction,
   onToggleEstadoPago,
@@ -65,19 +67,25 @@ export default function DailyTable({
     operadoraId: 'digitel'
   });
 
+  const allTxs = allTransactions.length > 0 ? allTransactions : transactions;
+
   // Métricas de fiados pendientes de la fecha
   const pendientesCount = useMemo(() => {
-    return transactions.filter(t => t.estadoPago === 'pendiente').length;
-  }, [transactions]);
+    return transactions.filter(t => {
+      if (t.estadoPago !== 'pendiente') return false;
+      const { saldoPendiente } = getAbonosForTransaction(t, allTxs);
+      return saldoPendiente > 0;
+    }).length;
+  }, [transactions, allTxs]);
 
   const pendientesTotalBs = useMemo(() => {
     return transactions
       .filter(t => t.estadoPago === 'pendiente')
       .reduce((acc, t) => {
-        const saldo = t.saldoPendiente != null ? Number(t.saldoPendiente) : (Number(t.montoCobrado || 0) - Number(t.totalAbonado || 0));
-        return acc + Math.max(0, saldo);
+        const { saldoPendiente } = getAbonosForTransaction(t, allTxs);
+        return acc + saldoPendiente;
       }, 0);
-  }, [transactions]);
+  }, [transactions, allTxs]);
 
   const filteredTransactions = useMemo(() => {
     const list = transactions.filter((tx) => {
@@ -1129,15 +1137,21 @@ export default function DailyTable({
                           <span>
                             {formatBs(
                               isPendiente
-                                ? (tx.saldoPendiente != null ? Number(tx.saldoPendiente) : Math.max(0, Number(tx.montoCobrado || 0) - Number(tx.totalAbonado || 0)))
+                                ? getAbonosForTransaction(tx, allTxs).saldoPendiente
                                 : tx.montoCobrado
                             )}
                           </span>
-                          {Number(tx.totalAbonado || 0) > 0 && (
-                            <span className="block text-[9px] font-sans font-semibold text-emerald-600 dark:text-emerald-400">
-                              Abonado: +{formatBs(tx.totalAbonado)}
-                            </span>
-                          )}
+                          {(() => {
+                            const { totalAbonado } = getAbonosForTransaction(tx, allTxs);
+                            if (totalAbonado > 0 && isPendiente) {
+                              return (
+                                <span className="block text-[9px] font-sans font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Abonado: +{formatBs(totalAbonado)} de {formatBs(tx.montoCobrado)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
                       <td className="py-2.5 px-2 text-center">
@@ -1404,10 +1418,8 @@ export default function DailyTable({
 
               {/* Resumen del cliente y monto */}
               {(() => {
-                const deudaActual = payPendingTx.saldoPendiente != null
-                  ? Number(payPendingTx.saldoPendiente)
-                  : Math.max(0, Number(payPendingTx.montoCobrado || 0) - Number(payPendingTx.totalAbonado || 0));
-                const montoOriginal = Number(payPendingTx.montoOriginal || payPendingTx.montoCobrado || 0);
+                const { totalAbonado, saldoPendiente: deudaActual } = getAbonosForTransaction(payPendingTx, allTxs);
+                const montoOriginal = Number(payPendingTx.montoCobrado || payPendingTx.montoOriginal || 0);
 
                 return (
                   <>
@@ -1430,10 +1442,10 @@ export default function DailyTable({
                           {payPendingTx.operadoraNombre} • {payPendingTx.telefono || 'Sin número'}
                         </span>
                       </div>
-                      {Number(payPendingTx.totalAbonado || 0) > 0 && (
+                      {totalAbonado > 0 && (
                         <div className="flex items-center justify-between mb-1.5 text-emerald-600 dark:text-emerald-400">
                           <span className="font-semibold text-[11px]">Abonos Previos</span>
-                          <span className="font-mono font-bold">+{formatBs(payPendingTx.totalAbonado)} de {formatBs(montoOriginal)}</span>
+                          <span className="font-mono font-bold">+{formatBs(totalAbonado)} de {formatBs(montoOriginal)}</span>
                         </div>
                       )}
                       <div className={`pt-2 mt-2 border-t flex items-center justify-between ${

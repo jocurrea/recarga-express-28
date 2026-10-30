@@ -505,6 +505,7 @@ export default function Home() {
         {activeTab === 'diario' && (
           <DailyTable
             transactions={dayTransactions}
+            allTransactions={allTransactions}
             onDeleteTransaction={handleDeleteTransaction}
             onUpdateTransaction={handleUpdateTransaction}
             onToggleEstadoPago={handleToggleEstadoPago}

@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { formatBs, formatUsd, calculateDailySummary } from '@/lib/calculator';
 import { exportWeeklyReport } from '@/lib/excelExport';
+import { getAbonosForTransaction } from '@/lib/storage';
 import { ChevronLeft, ChevronRight, Sparkles, Calendar, DollarSign, Download, FileText, Clock, CheckCircle2, User, X, Wallet, TrendingUp } from 'lucide-react';
 import ReportPdfModal from './ReportPdfModal';
 
@@ -158,19 +159,24 @@ export default function WeeklyReport({
     return `${d1.getDate()} de ${d1.toLocaleDateString('es-VE', { month: 'short' })} - ${d2.getDate()} de ${d2.toLocaleDateString('es-VE', { month: 'short', year: 'numeric' })}`;
   }, [daysOfWeek]);
 
-  // Recargas fiadas pendientes dentro de esta semana
+  // Recargas fiadas pendientes dentro de esta semana (que aún tengan saldo pendiente)
   const pendingWeeklyTxs = useMemo(() => {
-    return allTransactions.filter(
-      (t) => t.estadoPago === 'pendiente' && daysOfWeek.some((d) => d.fechaIso === t.fecha)
-    );
+    return allTransactions.filter((t) => {
+      const isPendiente = (t.estadoPago || 'pagado') === 'pendiente';
+      if (!isPendiente) return false;
+      const inThisWeek = daysOfWeek.some((d) => d.fechaIso === t.fecha);
+      if (!inThisWeek) return false;
+      const { saldoPendiente } = getAbonosForTransaction(t, allTransactions);
+      return saldoPendiente > 0;
+    });
   }, [allTransactions, daysOfWeek]);
 
   const totalPendienteSemanaBs = useMemo(() => {
     return pendingWeeklyTxs.reduce((sum, t) => {
-      const saldo = t.saldoPendiente != null ? Number(t.saldoPendiente) : (Number(t.montoCobrado || 0) - Number(t.totalAbonado || 0));
-      return sum + Math.max(0, saldo);
+      const { saldoPendiente } = getAbonosForTransaction(t, allTransactions);
+      return sum + saldoPendiente;
     }, 0);
-  }, [pendingWeeklyTxs]);
+  }, [pendingWeeklyTxs, allTransactions]);
 
   // Exportar reporte semanal nativo a Excel (.xlsx)
   const exportWeeklyExcel = () => {
@@ -352,6 +358,9 @@ export default function WeeklyReport({
               }`}>
                 {pendingWeeklyTxs.map((tx) => {
                   const dayObj = daysOfWeek.find((d) => d.fechaIso === tx.fecha);
+                  const { totalAbonado, saldoPendiente } = getAbonosForTransaction(tx, allTransactions);
+                  const montoTotal = Number(tx.montoCobrado || tx.montoOriginal || 0);
+
                   return (
                     <tr
                       key={tx.id}
@@ -401,16 +410,10 @@ export default function WeeklyReport({
                         isLight ? 'text-amber-900' : 'text-amber-300'
                       }`}>
                         <div>
-                          <span>
-                            {formatBs(
-                              tx.saldoPendiente != null
-                                ? Number(tx.saldoPendiente)
-                                : Math.max(0, Number(tx.montoCobrado || 0) - Number(tx.totalAbonado || 0))
-                            )}
-                          </span>
-                          {Number(tx.totalAbonado || 0) > 0 && (
+                          <span>{formatBs(saldoPendiente)}</span>
+                          {totalAbonado > 0 && (
                             <span className="block text-[10px] font-sans font-semibold text-emerald-600 dark:text-emerald-400">
-                              Abonado: +{formatBs(tx.totalAbonado)} (Total: {formatBs(tx.montoOriginal || tx.montoCobrado)})
+                              Abonado: +{formatBs(totalAbonado)} (Total: {formatBs(montoTotal)})
                             </span>
                           )}
                         </div>
@@ -753,10 +756,8 @@ export default function WeeklyReport({
 
               {/* Resumen del cliente y deuda actual */}
               {(() => {
-                const deudaActual = payPendingTx.saldoPendiente != null
-                  ? Number(payPendingTx.saldoPendiente)
-                  : Math.max(0, Number(payPendingTx.montoCobrado || 0) - Number(payPendingTx.totalAbonado || 0));
-                const montoOriginal = Number(payPendingTx.montoOriginal || payPendingTx.montoCobrado || 0);
+                const { totalAbonado, saldoPendiente: deudaActual } = getAbonosForTransaction(payPendingTx, allTransactions);
+                const montoOriginal = Number(payPendingTx.montoCobrado || payPendingTx.montoOriginal || 0);
 
                 return (
                   <>

@@ -78,14 +78,20 @@ export function getAllTransactions() {
     let modified = false;
     // Auto-corregir transacciones históricas donde montoCobrado se redujo al abonar
     const healed = list.map(t => {
-      if (t.montoOriginal && Number(t.montoCobrado) < Number(t.montoOriginal) && !t.isAbono) {
+      // Auto-reparar recarga de José de CANTV si estaba en 5400
+      if (t.id === 'tx-1793059827663-n3xk4' && Number(t.montoCobrado) === 5400) {
         modified = true;
-        const totalAbonado = Number(t.totalAbonado || 0);
-        const restante = Math.max(0, Number(t.montoOriginal) - totalAbonado);
         return {
           ...t,
-          montoCobrado: Number(t.montoOriginal),
-          saldoPendiente: restante
+          montoCobrado: 10400,
+          montoOriginal: 10400
+        };
+      }
+      if (t.montoOriginal && Number(t.montoCobrado) < Number(t.montoOriginal) && !t.isAbono) {
+        modified = true;
+        return {
+          ...t,
+          montoCobrado: Number(t.montoOriginal)
         };
       }
       return t;
@@ -97,6 +103,49 @@ export function getAllTransactions() {
   } catch {
     return [];
   }
+}
+
+/**
+ * Calcula de forma dinámica los abonos registrados a una recarga fiada
+ */
+export function getAbonosForTransaction(targetTx, allTransactions = []) {
+  if (!targetTx) return { totalAbonado: 0, saldoPendiente: 0, abonos: [] };
+  const txCobrado = Number(targetTx.montoCobrado || targetTx.montoOriginal || 0);
+  if (!allTransactions || !allTransactions.length) {
+    return {
+      totalAbonado: 0,
+      saldoPendiente: txCobrado,
+      abonos: []
+    };
+  }
+
+  const abonos = allTransactions.filter(t => {
+    const isAbono = Boolean(
+      t.isAbono ||
+      t.operadoraId === 'abono' ||
+      (t.operadoraNombre && t.operadoraNombre.toLowerCase().startsWith('abono'))
+    );
+    if (!isAbono) return false;
+
+    // 1. Vinculación directa si el ID del abono contiene el ID de la recarga
+    if (t.id && targetTx.id && t.id.includes(targetTx.id)) return true;
+
+    // 2. Vinculación por teléfono o nombre del cliente
+    const samePhone = targetTx.telefono && t.telefono && t.telefono.trim() === targetTx.telefono.trim();
+    const sameClient = targetTx.clienteNombre && t.clienteNombre &&
+      t.clienteNombre.trim().toLowerCase() === targetTx.clienteNombre.trim().toLowerCase();
+
+    return Boolean(samePhone || sameClient);
+  });
+
+  const totalAbonado = abonos.reduce((sum, a) => sum + Number(a.montoCobrado || 0), 0);
+  const saldoPendiente = Math.max(0, txCobrado - totalAbonado);
+
+  return {
+    totalAbonado,
+    saldoPendiente,
+    abonos
+  };
 }
 
 export function getTransactionsByDate(dateStr) {
@@ -228,23 +277,20 @@ export function abonarTransaccion(id, montoAbono, metodoCobro = 'efectivo', fech
   const targetTx = all.find(t => t.id === id);
   if (!targetTx) return all;
 
-  const montoOriginal = Number(targetTx.montoOriginal || targetTx.montoCobrado || 0);
-  const totalAbonadoPrevio = Number(targetTx.totalAbonado || 0);
-  const deudaActual = Math.max(0, Math.round((montoOriginal - totalAbonadoPrevio) * 100) / 100);
+  const { totalAbonado: previoAbonado, saldoPendiente: deudaActual } = getAbonosForTransaction(targetTx, all);
   const fechaHoy = fechaAbono || getTodayDateStr();
   const horaHoy = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
 
   const abonoReal = Math.min(numAbono, deudaActual);
-  const nuevoTotalAbonado = Math.round((totalAbonadoPrevio + abonoReal) * 100) / 100;
-  const restante = Math.max(0, Math.round((montoOriginal - nuevoTotalAbonado) * 100) / 100);
+  const restante = Math.max(0, deudaActual - abonoReal);
   const quedaSaldado = restante <= 0;
 
   // 1. Crear el registro del abono que ingresa a la caja de HOY
   const txAbono = {
-    id: 'tx-abono-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    id: `tx-abono-${targetTx.id}-${Date.now()}`,
     fecha: fechaHoy,
     hora: horaHoy,
-    operadoraId: 'abono',
+    operadoraId: targetTx.operadoraId || 'abono',
     operadoraNombre: `Abono (${targetTx.operadoraNombre || 'Deuda'})`,
     isAbono: true,
     plataforma: targetTx.plataforma || 'payall',
@@ -259,26 +305,17 @@ export function abonarTransaccion(id, montoAbono, metodoCobro = 'efectivo', fech
     clienteNombre: targetTx.clienteNombre || 'Cliente fiado',
     estadoPago: 'pagado',
     fechaPago: new Date().toISOString(),
-    notas: quedaSaldado
-      ? `Cobro final de ${abonoReal} Bs. Deuda saldada al 100% (Original: ${montoOriginal} Bs de ${targetTx.operadoraNombre} del ${targetTx.fecha}).`
-      : `Abono de ${abonoReal} Bs a deuda original de ${montoOriginal} Bs (${targetTx.operadoraNombre} del ${targetTx.fecha}). Resta por cobrar: ${restante} Bs.`,
     createdAt: new Date().toISOString()
   };
 
-  // 2. Actualizar la transacción original pendiente MANTENIENDO montoCobrado = montoOriginal
+  // 2. Si la deuda queda saldada al 100%, actualizar el estadoPago de la original a 'pagado'
   let updatedOriginal = null;
   const updatedAll = all.map(t => {
     if (t.id === id) {
-      const notaPrevia = t.notas ? `${t.notas} | ` : '';
       updatedOriginal = {
         ...t,
-        montoOriginal: montoOriginal,
-        montoCobrado: montoOriginal, // ¡MANTENER INTACTO EL MONTO COBRADO ORIGINAL PARA NO ALTERAR LA GANANCIA DEL DÍA DE LA RECARGA!
-        totalAbonado: nuevoTotalAbonado,
-        saldoPendiente: restante,
         estadoPago: quedaSaldado ? 'pagado' : 'pendiente',
-        fechaPago: quedaSaldado ? new Date().toISOString() : t.fechaPago,
-        notas: `${notaPrevia}Abonó ${abonoReal} Bs el ${fechaHoy} (${horaHoy}) por ${metodoCobro}. ${quedaSaldado ? 'Deuda saldada al 100%.' : `Resta: ${restante} Bs.`}`
+        fechaPago: quedaSaldado ? new Date().toISOString() : t.fechaPago
       };
       return updatedOriginal;
     }
