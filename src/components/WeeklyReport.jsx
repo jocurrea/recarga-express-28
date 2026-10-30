@@ -166,7 +166,10 @@ export default function WeeklyReport({
   }, [allTransactions, daysOfWeek]);
 
   const totalPendienteSemanaBs = useMemo(() => {
-    return pendingWeeklyTxs.reduce((sum, t) => sum + Number(t.montoCobrado || 0), 0);
+    return pendingWeeklyTxs.reduce((sum, t) => {
+      const saldo = t.saldoPendiente != null ? Number(t.saldoPendiente) : (Number(t.montoCobrado || 0) - Number(t.totalAbonado || 0));
+      return sum + Math.max(0, saldo);
+    }, 0);
   }, [pendingWeeklyTxs]);
 
   // Exportar reporte semanal nativo a Excel (.xlsx)
@@ -398,10 +401,16 @@ export default function WeeklyReport({
                         isLight ? 'text-amber-900' : 'text-amber-300'
                       }`}>
                         <div>
-                          <span>{formatBs(tx.montoCobrado)}</span>
+                          <span>
+                            {formatBs(
+                              tx.saldoPendiente != null
+                                ? Number(tx.saldoPendiente)
+                                : Math.max(0, Number(tx.montoCobrado || 0) - Number(tx.totalAbonado || 0))
+                            )}
+                          </span>
                           {Number(tx.totalAbonado || 0) > 0 && (
                             <span className="block text-[10px] font-sans font-semibold text-emerald-600 dark:text-emerald-400">
-                              Abonado: +{formatBs(tx.totalAbonado)}
+                              Abonado: +{formatBs(tx.totalAbonado)} (Total: {formatBs(tx.montoOriginal || tx.montoCobrado)})
                             </span>
                           )}
                         </div>
@@ -743,232 +752,238 @@ export default function WeeklyReport({
               </div>
 
               {/* Resumen del cliente y deuda actual */}
-              <div className={`p-3.5 rounded-xl border ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
-              }`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`font-semibold uppercase tracking-wider text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Cliente
-                  </span>
-                  <span className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {payPendingTx.clienteNombre || 'Cliente frecuente'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`font-semibold text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Operadora / Fecha
-                  </span>
-                  <span className={`font-mono ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                    {payPendingTx.operadoraNombre} • {payPendingTx.fecha} {payPendingTx.hora}
-                  </span>
-                </div>
-                {Number(payPendingTx.totalAbonado || 0) > 0 && (
-                  <div className="flex items-center justify-between mb-1.5 text-emerald-600 dark:text-emerald-400">
-                    <span className="font-semibold text-[11px]">Abonos Previos</span>
-                    <span className="font-mono font-bold">+{formatBs(payPendingTx.totalAbonado)}</span>
-                  </div>
-                )}
-                <div className={`pt-2 mt-2 border-t flex items-center justify-between ${
-                  isLight ? 'border-slate-200' : 'border-slate-800'
-                }`}>
-                  <span className={`font-bold text-xs uppercase ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                    Deuda Pendiente Actual
-                  </span>
-                  <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-lg">
-                    {formatBs(payPendingTx.montoCobrado)}
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const deudaActual = payPendingTx.saldoPendiente != null
+                  ? Number(payPendingTx.saldoPendiente)
+                  : Math.max(0, Number(payPendingTx.montoCobrado || 0) - Number(payPendingTx.totalAbonado || 0));
+                const montoOriginal = Number(payPendingTx.montoOriginal || payPendingTx.montoCobrado || 0);
 
-              {/* Input de Monto si es Abono Parcial */}
-              {payMode === 'abono' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className={`font-bold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                      ¿Cuánto abona el cliente hoy? (Bs)
-                    </label>
-                    <span className="text-[11px] text-slate-500">
-                      Máx: {formatBs(payPendingTx.montoCobrado)}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.01"
-                      max={payPendingTx.montoCobrado}
-                      autoFocus
-                      placeholder={`Ej: 5000`}
-                      value={abonoMonto}
-                      onChange={(e) => {
-                        setAbonoMonto(e.target.value);
-                        setAbonoError('');
-                      }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-black border transition ${
-                        isLight
-                          ? 'bg-white border-slate-300 text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
-                          : 'bg-slate-900 border-slate-700 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
-                      }`}
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">
-                      Bs.
-                    </span>
-                  </div>
-
-                  {/* Botones de sugerencia rápida */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {Number(payPendingTx.montoCobrado) > 5000 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAbonoMonto('5000');
-                          setAbonoError('');
-                        }}
-                        className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
-                          abonoMonto === '5000'
-                            ? 'bg-amber-600 text-white border-amber-600'
-                            : isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                        }`}
-                      >
-                        5.000 Bs
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const mitad = Math.round((Number(payPendingTx.montoCobrado) / 2) * 100) / 100;
-                        setAbonoMonto(String(mitad));
-                        setAbonoError('');
-                      }}
-                      className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
-                        isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                      }`}
-                    >
-                      50% ({formatBs(Number(payPendingTx.montoCobrado) / 2)})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAbonoMonto(String(payPendingTx.montoCobrado));
-                        setAbonoError('');
-                      }}
-                      className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
-                        isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                      }`}
-                    >
-                      Total ({formatBs(payPendingTx.montoCobrado)})
-                    </button>
-                  </div>
-
-                  {/* Cuadro de previsualización de saldo */}
-                  {Number(abonoMonto) > 0 && (
-                    <div className={`p-2.5 rounded-xl border flex items-center justify-between font-mono ${
-                      isLight ? 'bg-amber-50/70 border-amber-200' : 'bg-amber-950/20 border-amber-800/40'
+                return (
+                  <>
+                    <div className={`p-3.5 rounded-xl border ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
                     }`}>
-                      <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-500">Ingreso a Caja Hoy</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-black text-sm">
-                          +{formatBs(Number(abonoMonto))}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`font-semibold uppercase tracking-wider text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Cliente
+                        </span>
+                        <span className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {payPendingTx.clienteNombre || 'Cliente frecuente'}
                         </span>
                       </div>
-                      <div className="text-right">
-                        <span className="block text-[10px] uppercase font-bold text-slate-500">Resta de Deuda</span>
-                        <span className="text-amber-600 dark:text-amber-400 font-black text-sm">
-                          {formatBs(Math.max(0, Number(payPendingTx.montoCobrado) - Number(abonoMonto)))}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`font-semibold text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Operadora / Fecha
+                        </span>
+                        <span className={`font-mono ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                          {payPendingTx.operadoraNombre} • {payPendingTx.fecha} {payPendingTx.hora}
+                        </span>
+                      </div>
+                      {Number(payPendingTx.totalAbonado || 0) > 0 && (
+                        <div className="flex items-center justify-between mb-1.5 text-emerald-600 dark:text-emerald-400">
+                          <span className="font-semibold text-[11px]">Abonos Previos</span>
+                          <span className="font-mono font-bold">+{formatBs(payPendingTx.totalAbonado)} de {formatBs(montoOriginal)}</span>
+                        </div>
+                      )}
+                      <div className={`pt-2 mt-2 border-t flex items-center justify-between ${
+                        isLight ? 'border-slate-200' : 'border-slate-800'
+                      }`}>
+                        <span className={`font-bold text-xs uppercase ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                          Deuda Pendiente Actual
+                        </span>
+                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-lg">
+                          {formatBs(deudaActual)}
                         </span>
                       </div>
                     </div>
-                  )}
 
-                  {abonoError && (
-                    <p className="text-red-500 font-bold text-xs mt-1">
-                      {abonoError}
-                    </p>
-                  )}
-                </div>
-              )}
+                    {/* Input de Monto si es Abono Parcial */}
+                    {payMode === 'abono' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className={`font-bold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                            ¿Cuánto abona el cliente hoy? (Bs)
+                          </label>
+                          <span className="text-[11px] text-slate-500">
+                            Máx: {formatBs(deudaActual)}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            max={deudaActual}
+                            autoFocus
+                            placeholder={`Ej: 5000`}
+                            value={abonoMonto}
+                            onChange={(e) => {
+                              setAbonoMonto(e.target.value);
+                              setAbonoError('');
+                            }}
+                            className={`w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-black border transition ${
+                              isLight
+                                ? 'bg-white border-slate-300 text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                                : 'bg-slate-900 border-slate-700 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                            }`}
+                          />
+                          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">
+                            Bs.
+                          </span>
+                        </div>
 
-              {/* Selección del método de pago con el que abona/paga hoy */}
-              <div>
-                <label className={`block font-bold uppercase tracking-wider mb-2 ${
-                  isLight ? 'text-slate-700' : 'text-slate-300'
-                }`}>
-                  ¿Cómo entrega el dinero hoy?
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'efectivo', nombre: 'Efectivo', color: 'emerald' },
-                    { id: 'pagomovil', nombre: 'Pago Móvil', color: 'violet' },
-                    { id: 'punto', nombre: 'Punto POS', color: 'sky' },
-                    { id: 'biopago', nombre: 'BioPago', color: 'amber' }
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setPayPendingMethod(m.id)}
-                      className={`p-2.5 rounded-xl font-bold border text-center transition cursor-pointer text-xs ${
-                        payPendingMethod === m.id
-                          ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs'
-                          : isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      {m.nombre}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                        {/* Botones de sugerencia rápida */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {deudaActual > 5000 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAbonoMonto('5000');
+                                setAbonoError('');
+                              }}
+                              className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
+                                abonoMonto === '5000'
+                                  ? 'bg-amber-600 text-white border-amber-600'
+                                  : isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                              }`}
+                            >
+                              5.000 Bs
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const mitad = Math.round((deudaActual / 2) * 100) / 100;
+                              setAbonoMonto(String(mitad));
+                              setAbonoError('');
+                            }}
+                            className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
+                              isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                            }`}
+                          >
+                            50% ({formatBs(deudaActual / 2)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAbonoMonto(String(deudaActual));
+                              setAbonoError('');
+                            }}
+                            className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
+                              isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                            }`}
+                          >
+                            Total ({formatBs(deudaActual)})
+                          </button>
+                        </div>
 
-              {/* Botones de confirmación */}
-              <div className={`pt-3 border-t flex items-center justify-end gap-2 ${
-                isLight ? 'border-slate-100' : 'border-slate-800'
-              }`}>
-                <button
-                  type="button"
-                  onClick={() => setPayPendingTx(null)}
-                  className={`px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
-                    isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  Cancelar
-                </button>
-                <button
-                  id="confirm-weekly-pay-pending-btn"
-                  type="button"
-                  onClick={() => {
-                    if (payMode === 'abono') {
-                      const num = Number(abonoMonto);
-                      if (!num || num <= 0) {
-                        setAbonoError('Por favor ingresa un monto mayor a 0 Bs.');
-                        return;
-                      }
-                      if (num >= Number(payPendingTx.montoCobrado)) {
-                        // El abono cubre el total o más, liquidar deuda
-                        onToggleEstadoPago?.(payPendingTx.id, payPendingMethod);
-                      } else {
-                        onAbonarDeuda?.(payPendingTx.id, num, payPendingMethod);
-                      }
-                      setPayPendingTx(null);
-                    } else {
-                      onToggleEstadoPago?.(payPendingTx.id, payPendingMethod);
-                      setPayPendingTx(null);
-                    }
-                  }}
-                  className={`px-5 py-2.5 rounded-xl font-black text-white transition shadow-sm cursor-pointer flex items-center gap-1.5 ${
-                    payMode === 'abono'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-emerald-600 hover:bg-emerald-700'
-                  }`}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {payMode === 'abono'
-                      ? Number(abonoMonto) > 0 ? `Registrar Abono (+${formatBs(Number(abonoMonto))})` : 'Registrar Abono'
-                      : 'Saldar Deuda Completa'}
-                  </span>
-                </button>
-              </div>
+                        {/* Cuadro de previsualización de saldo */}
+                        {Number(abonoMonto) > 0 && (
+                          <div className={`p-2.5 rounded-xl border flex items-center justify-between font-mono ${
+                            isLight ? 'bg-amber-50/70 border-amber-200' : 'bg-amber-950/20 border-amber-800/40'
+                          }`}>
+                            <div>
+                              <span className="block text-[10px] uppercase font-bold text-slate-500">Ingreso a Caja Hoy</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black text-sm">
+                                +{formatBs(Number(abonoMonto))}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="block text-[10px] uppercase font-bold text-slate-500">Resta de Deuda</span>
+                              <span className="text-amber-600 dark:text-amber-400 font-black text-sm">
+                                {formatBs(Math.max(0, deudaActual - Number(abonoMonto)))}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {abonoError && (
+                          <p className="text-red-500 font-bold text-xs mt-1">
+                            {abonoError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selección del método de pago con el que abona/paga hoy */}
+                    <div>
+                      <label className={`block font-bold uppercase tracking-wider mb-2 ${
+                        isLight ? 'text-slate-700' : 'text-slate-300'
+                      }`}>
+                        ¿Cómo entrega el dinero hoy?
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: 'efectivo', nombre: 'Efectivo', color: 'emerald' },
+                          { id: 'pagomovil', nombre: 'Pago Móvil', color: 'violet' },
+                          { id: 'punto', nombre: 'Punto POS', color: 'sky' },
+                          { id: 'biopago', nombre: 'BioPago', color: 'amber' }
+                        ].map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setPayPendingMethod(m.id)}
+                            className={`p-2.5 rounded-xl font-bold border text-center transition cursor-pointer text-xs ${
+                              payPendingMethod === m.id
+                                ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs'
+                                : isLight
+                                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                                : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            {m.nombre}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Botones de confirmación */}
+                    <div className={`pt-3 border-t flex items-center justify-end gap-2 ${
+                      isLight ? 'border-slate-100' : 'border-slate-800'
+                    }`}>
+                      <button
+                        type="button"
+                        onClick={() => setPayPendingTx(null)}
+                        className={`px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+                          isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        id="confirm-weekly-pay-pending-btn"
+                        type="button"
+                        onClick={() => {
+                          if (payMode === 'abono') {
+                            const num = Number(abonoMonto);
+                            if (!num || num <= 0) {
+                              setAbonoError('Por favor ingresa un monto mayor a 0 Bs.');
+                              return;
+                            }
+                            onAbonarDeuda?.(payPendingTx.id, num, payPendingMethod);
+                            setPayPendingTx(null);
+                          } else {
+                            onAbonarDeuda?.(payPendingTx.id, deudaActual, payPendingMethod);
+                            setPayPendingTx(null);
+                          }
+                        }}
+                        className={`px-5 py-2.5 rounded-xl font-black text-white transition shadow-sm cursor-pointer flex items-center gap-1.5 ${
+                          payMode === 'abono'
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          {payMode === 'abono'
+                            ? Number(abonoMonto) > 0 ? `Registrar Abono (+${formatBs(Number(abonoMonto))})` : 'Registrar Abono'
+                            : `Saldar Total (+${formatBs(deudaActual)})`}
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

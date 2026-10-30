@@ -74,7 +74,26 @@ export function getAllTransactions() {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(KEY_TRANSACTIONS);
-    return raw ? JSON.parse(raw) : [];
+    const list = raw ? JSON.parse(raw) : [];
+    let modified = false;
+    // Auto-corregir transacciones históricas donde montoCobrado se redujo al abonar
+    const healed = list.map(t => {
+      if (t.montoOriginal && Number(t.montoCobrado) < Number(t.montoOriginal) && !t.isAbono) {
+        modified = true;
+        const totalAbonado = Number(t.totalAbonado || 0);
+        const restante = Math.max(0, Number(t.montoOriginal) - totalAbonado);
+        return {
+          ...t,
+          montoCobrado: Number(t.montoOriginal),
+          saldoPendiente: restante
+        };
+      }
+      return t;
+    });
+    if (modified && typeof window !== 'undefined') {
+      localStorage.setItem(KEY_TRANSACTIONS, JSON.stringify(healed));
+    }
+    return healed;
   } catch {
     return [];
   }
@@ -96,6 +115,7 @@ export function addTransaction(data) {
     operadoraNombre: data.operadoraNombre,
     montoRecarga: Number(data.montoRecarga),
     montoCobrado: Number(data.montoCobrado),
+    montoOriginal: Number(data.montoCobrado),
     metodo: data.metodo, // 'efectivo' | 'punto' | 'biopago' | 'pagomovil' | 'mixto'
     montoEfectivo: Number(data.montoEfectivo || 0),
     montoPunto: Number(data.montoPunto || 0),
@@ -208,45 +228,44 @@ export function abonarTransaccion(id, montoAbono, metodoCobro = 'efectivo', fech
   const targetTx = all.find(t => t.id === id);
   if (!targetTx) return all;
 
-  const deudaActual = Math.round(Number(targetTx.montoCobrado || 0) * 100) / 100;
+  const montoOriginal = Number(targetTx.montoOriginal || targetTx.montoCobrado || 0);
+  const totalAbonadoPrevio = Number(targetTx.totalAbonado || 0);
+  const deudaActual = Math.max(0, Math.round((montoOriginal - totalAbonadoPrevio) * 100) / 100);
   const fechaHoy = fechaAbono || getTodayDateStr();
   const horaHoy = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
 
-  // Si el abono cubre o supera la deuda, pasa a pagado completo
-  if (numAbono >= deudaActual) {
-    return toggleEstadoPago(id, metodoCobro);
-  }
-
-  // Abono parcial:
-  const restante = Math.round((deudaActual - numAbono) * 100) / 100;
-  const montoOriginal = Number(targetTx.montoOriginal || deudaActual);
-  const totalAbonado = Math.round(((targetTx.totalAbonado || 0) + numAbono) * 100) / 100;
+  const abonoReal = Math.min(numAbono, deudaActual);
+  const nuevoTotalAbonado = Math.round((totalAbonadoPrevio + abonoReal) * 100) / 100;
+  const restante = Math.max(0, Math.round((montoOriginal - nuevoTotalAbonado) * 100) / 100);
+  const quedaSaldado = restante <= 0;
 
   // 1. Crear el registro del abono que ingresa a la caja de HOY
   const txAbono = {
     id: 'tx-abono-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
     fecha: fechaHoy,
     hora: horaHoy,
-    operadoraId: targetTx.operadoraId || 'abono',
+    operadoraId: 'abono',
     operadoraNombre: `Abono (${targetTx.operadoraNombre || 'Deuda'})`,
     isAbono: true,
     plataforma: targetTx.plataforma || 'payall',
     montoRecarga: 0, // No consume saldo hoy porque ya se consumió en la recarga original
-    montoCobrado: numAbono,
+    montoCobrado: abonoReal,
     metodo: metodoCobro,
-    montoEfectivo: metodoCobro === 'efectivo' ? numAbono : 0,
-    montoPunto: metodoCobro === 'punto' ? numAbono : 0,
-    montoBiopago: metodoCobro === 'biopago' ? numAbono : 0,
-    montoPagoMovil: metodoCobro === 'pagomovil' ? numAbono : 0,
+    montoEfectivo: metodoCobro === 'efectivo' ? abonoReal : 0,
+    montoPunto: metodoCobro === 'punto' ? abonoReal : 0,
+    montoBiopago: metodoCobro === 'biopago' ? abonoReal : 0,
+    montoPagoMovil: metodoCobro === 'pagomovil' ? abonoReal : 0,
     telefono: targetTx.telefono || '',
     clienteNombre: targetTx.clienteNombre || 'Cliente fiado',
     estadoPago: 'pagado',
     fechaPago: new Date().toISOString(),
-    notas: `Abono de ${numAbono} Bs a deuda original de ${montoOriginal} Bs (${targetTx.operadoraNombre} del ${targetTx.fecha}). Resta por cobrar: ${restante} Bs.`,
+    notas: quedaSaldado
+      ? `Cobro final de ${abonoReal} Bs. Deuda saldada al 100% (Original: ${montoOriginal} Bs de ${targetTx.operadoraNombre} del ${targetTx.fecha}).`
+      : `Abono de ${abonoReal} Bs a deuda original de ${montoOriginal} Bs (${targetTx.operadoraNombre} del ${targetTx.fecha}). Resta por cobrar: ${restante} Bs.`,
     createdAt: new Date().toISOString()
   };
 
-  // 2. Actualizar la transacción original pendiente con el saldo restante
+  // 2. Actualizar la transacción original pendiente MANTENIENDO montoCobrado = montoOriginal
   let updatedOriginal = null;
   const updatedAll = all.map(t => {
     if (t.id === id) {
@@ -254,9 +273,12 @@ export function abonarTransaccion(id, montoAbono, metodoCobro = 'efectivo', fech
       updatedOriginal = {
         ...t,
         montoOriginal: montoOriginal,
-        totalAbonado: totalAbonado,
-        montoCobrado: restante,
-        notas: `${notaPrevia}Abonó ${numAbono} Bs el ${fechaHoy} (${horaHoy}) por ${metodoCobro}. Resta por cobrar: ${restante} Bs.`
+        montoCobrado: montoOriginal, // ¡MANTENER INTACTO EL MONTO COBRADO ORIGINAL PARA NO ALTERAR LA GANANCIA DEL DÍA DE LA RECARGA!
+        totalAbonado: nuevoTotalAbonado,
+        saldoPendiente: restante,
+        estadoPago: quedaSaldado ? 'pagado' : 'pendiente',
+        fechaPago: quedaSaldado ? new Date().toISOString() : t.fechaPago,
+        notas: `${notaPrevia}Abonó ${abonoReal} Bs el ${fechaHoy} (${horaHoy}) por ${metodoCobro}. ${quedaSaldado ? 'Deuda saldada al 100%.' : `Resta: ${restante} Bs.`}`
       };
       return updatedOriginal;
     }
