@@ -276,20 +276,51 @@ export function getAlquilerPuntoByDate(dateStr) {
 
 export function addAlquilerPunto(data) {
   const all = getAllAlquilerPunto();
-  const monto = Number(data.montoTotal || 0);
+  const rawTipo = data.tipo || 'punto';
+  const tipo = rawTipo === 'mixto' ? 'mixto' : (rawTipo === 'biopago' ? 'biopago' : 'punto');
+
+  let montoPunto = 0;
+  let montoBiopago = 0;
+  let ticketsPunto = 0;
+  let ticketsBiopago = 0;
+  let montoTotal = 0;
+  let ticketsTotal = 0;
+
+  if (tipo === 'mixto') {
+    montoPunto = Number(data.montoPunto || 0);
+    montoBiopago = Number(data.montoBiopago || 0);
+    montoTotal = Math.round((montoPunto + montoBiopago) * 100) / 100;
+    ticketsPunto = Number(data.ticketsPunto) || 0;
+    ticketsBiopago = Number(data.ticketsBiopago) || 0;
+    ticketsTotal = ticketsPunto + ticketsBiopago || 1;
+  } else if (tipo === 'biopago') {
+    montoBiopago = Number(data.montoTotal || data.montoBiopago || 0);
+    montoTotal = montoBiopago;
+    ticketsBiopago = Number(data.tickets || data.ticketsBiopago) || 1;
+    ticketsTotal = ticketsBiopago;
+  } else {
+    montoPunto = Number(data.montoTotal || data.montoPunto || 0);
+    montoTotal = montoPunto;
+    ticketsPunto = Number(data.tickets || data.ticketsPunto) || 1;
+    ticketsTotal = ticketsPunto;
+  }
+
   const comisionPct = Number(data.comisionPorcentaje ?? 10);
-  const comisionBs = monto * (comisionPct / 100);
-  const montoPagar = monto - comisionBs;
-  const tipo = data.tipo === 'biopago' ? 'biopago' : 'punto';
+  const comisionBs = montoTotal * (comisionPct / 100);
+  const montoPagar = montoTotal - comisionBs;
 
   const newItem = {
     id: 'alq-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-    tipo: tipo, // 'punto' | 'biopago'
+    tipo: tipo, // 'punto' | 'biopago' | 'mixto'
     fecha: data.fecha || getTodayDateStr(),
     hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
     nombre: (data.nombre || '').trim(),
-    tickets: Number(data.tickets) || 1,
-    montoTotal: monto,
+    tickets: ticketsTotal,
+    ticketsPunto: ticketsPunto,
+    ticketsBiopago: ticketsBiopago,
+    montoTotal: montoTotal,
+    montoPunto: montoPunto,
+    montoBiopago: montoBiopago,
     comisionPorcentaje: comisionPct,
     comisionBs: Math.round(comisionBs * 100) / 100,
     montoPagar: Math.round(montoPagar * 100) / 100,
@@ -321,34 +352,77 @@ export function updateAlquilerPunto(id, updatedFields) {
   let updatedRecord = null;
   const updated = all.map(item => {
     if (item.id === id) {
-      const monto = Number(
-        updatedFields.montoTotal !== undefined ? updatedFields.montoTotal : item.montoTotal
+      const tipo = updatedFields.tipo !== undefined
+        ? (updatedFields.tipo === 'mixto' ? 'mixto' : (updatedFields.tipo === 'biopago' ? 'biopago' : 'punto'))
+        : (item.tipo || 'punto');
+
+      let montoPunto = Number(
+        updatedFields.montoPunto !== undefined ? updatedFields.montoPunto : (item.montoPunto || 0)
       );
+      let montoBiopago = Number(
+        updatedFields.montoBiopago !== undefined ? updatedFields.montoBiopago : (item.montoBiopago || 0)
+      );
+      let ticketsPunto = Number(
+        updatedFields.ticketsPunto !== undefined ? updatedFields.ticketsPunto : (item.ticketsPunto || 0)
+      );
+      let ticketsBiopago = Number(
+        updatedFields.ticketsBiopago !== undefined ? updatedFields.ticketsBiopago : (item.ticketsBiopago || 0)
+      );
+
+      let montoTotal = 0;
+      let ticketsTotal = 0;
+
+      if (tipo === 'mixto') {
+        montoTotal = Math.round((montoPunto + montoBiopago) * 100) / 100;
+        ticketsTotal = (ticketsPunto + ticketsBiopago) || 1;
+      } else if (tipo === 'biopago') {
+        montoTotal = Number(
+          updatedFields.montoTotal !== undefined ? updatedFields.montoTotal : (updatedFields.montoBiopago || item.montoTotal || 0)
+        );
+        montoBiopago = montoTotal;
+        montoPunto = 0;
+        ticketsTotal = Number(
+          updatedFields.tickets !== undefined ? updatedFields.tickets : (updatedFields.ticketsBiopago || item.tickets || 1)
+        );
+        ticketsBiopago = ticketsTotal;
+        ticketsPunto = 0;
+      } else {
+        montoTotal = Number(
+          updatedFields.montoTotal !== undefined ? updatedFields.montoTotal : (updatedFields.montoPunto || item.montoTotal || 0)
+        );
+        montoPunto = montoTotal;
+        montoBiopago = 0;
+        ticketsTotal = Number(
+          updatedFields.tickets !== undefined ? updatedFields.tickets : (updatedFields.ticketsPunto || item.tickets || 1)
+        );
+        ticketsPunto = ticketsTotal;
+        ticketsBiopago = 0;
+      }
+
       const comisionPct = Number(
         updatedFields.comisionPorcentaje !== undefined
           ? updatedFields.comisionPorcentaje
           : (item.comisionPorcentaje ?? 10)
       );
-      const comisionBs = monto * (comisionPct / 100);
-      const montoPagar = monto - comisionBs;
-      const tipo = updatedFields.tipo !== undefined
-        ? (updatedFields.tipo === 'biopago' ? 'biopago' : 'punto')
-        : (item.tipo === 'biopago' ? 'biopago' : 'punto');
+      const comisionBs = montoTotal * (comisionPct / 100);
+      const montoPagar = montoTotal - comisionBs;
 
       updatedRecord = {
         ...item,
         ...updatedFields,
         tipo: tipo,
-        montoTotal: monto,
+        montoTotal: montoTotal,
+        montoPunto: montoPunto,
+        montoBiopago: montoBiopago,
+        tickets: ticketsTotal,
+        ticketsPunto: ticketsPunto,
+        ticketsBiopago: ticketsBiopago,
         comisionPorcentaje: comisionPct,
         comisionBs: Math.round(comisionBs * 100) / 100,
         montoPagar: Math.round(montoPagar * 100) / 100
       };
       if (updatedFields.nombre !== undefined) {
         updatedRecord.nombre = String(updatedFields.nombre).trim();
-      }
-      if (updatedFields.tickets !== undefined) {
-        updatedRecord.tickets = Number(updatedFields.tickets) || 1;
       }
       return updatedRecord;
     }

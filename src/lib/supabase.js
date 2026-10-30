@@ -115,15 +115,19 @@ export async function deleteTransactionFromSupabase(id) {
 export function mapRowToAlquiler(row) {
   return {
     id: row.id,
-    tipo: row.tipo === 'biopago' ? 'biopago' : 'punto',
+    tipo: row.tipo || 'punto',
     nombre: row.nombre,
     fecha: row.fecha,
     hora: row.hora || '',
     montoTotal: Number(row.monto_total || 0),
+    montoPunto: Number(row.monto_punto || 0),
+    montoBiopago: Number(row.monto_biopago || 0),
     comisionPorcentaje: Number(row.comision_porcentaje ?? 10),
     comisionBs: Number(row.comision_bs || 0),
     montoPagar: Number(row.monto_pagar || 0),
     tickets: Number(row.tickets || 1),
+    ticketsPunto: Number(row.tickets_punto || 0),
+    ticketsBiopago: Number(row.tickets_biopago || 0),
     transferido: Boolean(row.transferido)
   };
 }
@@ -131,7 +135,7 @@ export function mapRowToAlquiler(row) {
 export function mapAlquilerToRow(item) {
   const row = {
     id: item.id,
-    tipo: item.tipo === 'biopago' ? 'biopago' : 'punto',
+    tipo: item.tipo || 'punto',
     nombre: item.nombre,
     fecha: item.fecha,
     hora: item.hora || '',

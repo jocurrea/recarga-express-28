@@ -31,8 +31,16 @@ export default function ReportPdfModal({
   const totalAlquilerPagar = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.montoPagar || 0), 0);
   const totalAlquilerTickets = (alquilerRecords || []).reduce((acc, r) => acc + Number(r.tickets || 1), 0);
 
-  const totalAlquilerPuntoPasado = (alquilerRecords || []).filter(r => r.tipo !== 'biopago').reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
-  const totalAlquilerBiopagoPasado = (alquilerRecords || []).filter(r => r.tipo === 'biopago').reduce((acc, r) => acc + Number(r.montoTotal || 0), 0);
+  const totalAlquilerPuntoPasado = (alquilerRecords || []).reduce((acc, r) => {
+    if (r.tipo === 'mixto') return acc + Number(r.montoPunto || 0);
+    if (r.tipo !== 'biopago') return acc + Number(r.montoTotal || 0);
+    return acc;
+  }, 0);
+  const totalAlquilerBiopagoPasado = (alquilerRecords || []).reduce((acc, r) => {
+    if (r.tipo === 'mixto') return acc + Number(r.montoBiopago || 0);
+    if (r.tipo === 'biopago') return acc + Number(r.montoTotal || 0);
+    return acc;
+  }, 0);
 
   // Cálculos de saldo vendido y cobrado por plataforma (Payall vs PagoDirecto)
   const payallTxs = (transactions || []).filter(t => (t.plataforma || 'payall').toLowerCase() !== 'pagodirecto');
@@ -336,11 +344,13 @@ export default function ReportPdfModal({
                     {alquilerRecords.map((r, idx) => (
                       <tr key={r.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                         <td className="py-1.5 px-2 font-bold font-sans text-[10px]">
-                          {r.tipo === 'biopago' ? '👆 BioPago' : '💳 Punto POS'}
+                          {r.tipo === 'mixto' ? '🔀 Mixto' : r.tipo === 'biopago' ? '👆 BioPago' : '💳 Punto POS'}
                         </td>
                         <td className="py-1.5 px-2 font-bold font-sans text-slate-900">{r.nombre}</td>
                         <td className="py-1.5 px-2 text-center font-bold">
-                          {r.tickets} {r.tipo === 'biopago' ? 'manuales' : 'vouchers'}
+                          {r.tipo === 'mixto'
+                            ? `${r.tickets} (${r.ticketsPunto || 0} POS + ${r.ticketsBiopago || 0} Bio)`
+                            : `${r.tickets} ${r.tipo === 'biopago' ? 'manuales' : 'vouchers'}`}
                         </td>
                         <td className="py-1.5 px-2 text-right font-black">{formatBs(r.montoTotal)}</td>
                         <td className="py-1.5 px-2 text-right font-bold text-emerald-700">+{formatBs(r.comisionBs)}</td>

@@ -153,14 +153,23 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     const gan = Number(r.comisionBs || 0);
     const pag = Number(r.montoPagar || 0);
     const tix = Number(r.tickets || 1);
-    const isBiopago = r.tipo === 'biopago';
+    if (r.tipo === 'mixto') {
+      const pMonto = Number(r.montoPunto || 0);
+      const bMonto = Number(r.montoBiopago || 0);
+      const pTix = Number(r.ticketsPunto || 0);
+      const bTix = Number(r.ticketsBiopago || 0);
+      const pct = Number(r.comisionPorcentaje ?? 10) / 100;
 
-    summary.totalAlquilerPasado += tot;
-    summary.totalAlquilerGananciaBs += gan;
-    summary.totalAlquilerPagarBs += pag;
-    summary.countAlquilerTickets += tix;
+      summary.totalAlquilerPuntoPasado += pMonto;
+      summary.totalAlquilerPuntoGananciaBs += pMonto * pct;
+      summary.totalAlquilerPuntoPagarBs += pMonto * (1 - pct);
+      summary.countAlquilerPuntoTickets += pTix;
 
-    if (isBiopago) {
+      summary.totalAlquilerBiopagoPasado += bMonto;
+      summary.totalAlquilerBiopagoGananciaBs += bMonto * pct;
+      summary.totalAlquilerBiopagoPagarBs += bMonto * (1 - pct);
+      summary.countAlquilerBiopagoTickets += bTix;
+    } else if (r.tipo === 'biopago') {
       summary.totalAlquilerBiopagoPasado += tot;
       summary.totalAlquilerBiopagoGananciaBs += gan;
       summary.totalAlquilerBiopagoPagarBs += pag;
