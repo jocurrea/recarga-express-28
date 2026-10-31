@@ -76,10 +76,11 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
   const headers = [
     'Día',
     'Fecha',
+    'Ganancia Total Bruta (Bs)',
     'Ganancia Recargas (Bs)',
     'Payall (Bs)',
     'PagoDirecto (Bs)',
-    'Alquiler Punto (Bs)',
+    'Alquiler POS & BioPago (Bs)',
     'Deducciones Bancarias (Bs)',
     'Ganancia Neta Real (Bs)',
     'Ganancia Neta Real ($ BCV)',
@@ -88,17 +89,19 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
   ];
 
   const dataRows = (weekData.rows || []).map((r) => {
+    const totalConsolidada = Number(r.totalConsolidadaBs ?? (Number(r.totalGanancia || 0) + Number(r.totalAlquilerGananciaBs || 0)));
     return [
       r.nombre,
       r.fechaIso,
-      Number(r.totalGanancia || 0),
+      totalConsolidada,
+      Number(r.gananciaRecargasBs ?? r.totalGanancia ?? 0),
       Number(r.totalPayall || 0),
       Number(r.totalPagoDirecto || 0),
       Number(r.totalAlquilerGananciaBs || 0),
       Number(r.totalDeduccionesBs || 0),
-      Number(r.gananciaNetaBs || r.totalGanancia || 0),
-      Number((r.gananciaNetaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0)).toFixed(2)),
-      Number((r.dayBrutaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0)).toFixed(2)),
+      Number(r.gananciaNetaBs ?? totalConsolidada),
+      Number((r.gananciaNetaUsd ?? (tasaBcv > 0 ? totalConsolidada / tasaBcv : 0)).toFixed(2)),
+      Number((r.dayConsolidadaUsd ?? r.dayBrutaUsd ?? (tasaBcv > 0 ? totalConsolidada / tasaBcv : 0)).toFixed(2)),
       Number(r.count || 0)
     ];
   });
@@ -106,14 +109,15 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
   const totalRow = [
     'TOTAL SEMANAL',
     '',
-    Number(weekData.grandTotalBs || 0),
+    Number(weekData.grandTotalConsolidadaBs || 0),
+    Number(weekData.grandTotalRecargasBs ?? weekData.grandTotalBs ?? 0),
     Number(weekData.grandTotalPayall || 0),
     Number(weekData.grandTotalPagoDirecto || 0),
     Number(weekData.grandTotalAlquilerGanancia || 0),
     Number(weekData.grandTotalDeduccionesBs || 0),
-    Number((weekData.grandTotalNetaBs ?? weekData.grandTotalBs) || 0),
-    Number((weekData.grandTotalNetaUsd ?? weekData.grandTotalUsd ?? 0).toFixed(2)),
-    Number((weekData.grandTotalUsd || 0).toFixed(2)),
+    Number((weekData.grandTotalNetaBs ?? weekData.grandTotalConsolidadaBs) || 0),
+    Number((weekData.grandTotalNetaUsd ?? weekData.grandTotalConsolidadaUsd ?? 0).toFixed(2)),
+    Number((weekData.grandTotalConsolidadaUsd || weekData.grandTotalUsd || 0).toFixed(2)),
     Number(weekData.grandTotalRecargas || 0)
   ];
 
@@ -121,10 +125,11 @@ function createWeeklyWorkbook(weekData = {}, daysOfWeek = [], tasaBcv = 0) {
   worksheet['!cols'] = [
     { wch: 14 },
     { wch: 14 },
+    { wch: 25 },
     { wch: 22 },
     { wch: 16 },
     { wch: 16 },
-    { wch: 18 },
+    { wch: 24 },
     { wch: 22 },
     { wch: 22 },
     { wch: 24 },

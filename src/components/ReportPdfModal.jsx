@@ -213,23 +213,27 @@ export default function ReportPdfModal({
 
             {/* RESUMEN SEMANAL */}
             {type === 'semanal' && weekData && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
-                <div className="p-3 rounded-lg border border-slate-300 bg-slate-50">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+                <div className="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
                   <span className="text-[10px] text-slate-600 block uppercase font-bold font-sans">Total Recargas</span>
-                  <span className="text-xl font-black text-slate-900">{weekData.grandTotalRecargas}</span>
+                  <span className="text-lg font-black text-slate-900">{weekData.grandTotalRecargas}</span>
                 </div>
-                <div className="p-3 rounded-lg border border-slate-300 bg-slate-50">
+                <div className="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
                   <span className="text-[10px] text-slate-600 block uppercase font-bold font-sans">Ganancia Payall</span>
-                  <span className="text-xl font-black text-slate-900">+{formatBs(weekData.grandTotalPayall)}</span>
+                  <span className="text-lg font-black text-emerald-700">+{formatBs(weekData.grandTotalPayall)}</span>
                 </div>
-                <div className="p-3 rounded-lg border border-slate-300 bg-slate-50">
+                <div className="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
                   <span className="text-[10px] text-slate-600 block uppercase font-bold font-sans">Ganancia PagoDirecto</span>
-                  <span className="text-xl font-black text-slate-900">+{formatBs(weekData.grandTotalPagoDirecto)}</span>
+                  <span className="text-lg font-black text-blue-700">+{formatBs(weekData.grandTotalPagoDirecto)}</span>
                 </div>
-                <div className="p-3 rounded-lg border-2 border-emerald-500 bg-emerald-50">
-                  <span className="text-[10px] text-emerald-900 block uppercase font-black font-sans">Total Semanal</span>
-                  <span className="text-xl font-black text-emerald-700">+{formatBs(weekData.grandTotalBs)}</span>
-                  <span className="text-[10px] text-emerald-800 block font-bold font-mono">≈ {formatUsd(weekData.grandTotalUsd)}</span>
+                <div className="p-2.5 rounded-lg border border-orange-300 bg-orange-50/60">
+                  <span className="text-[10px] text-orange-900 block uppercase font-bold font-sans">Alquiler POS/BioPago</span>
+                  <span className="text-lg font-black text-orange-700">+{formatBs(weekData.grandTotalAlquilerGanancia)}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border-2 border-emerald-500 bg-emerald-50">
+                  <span className="text-[10px] text-emerald-900 block uppercase font-black font-sans">Total Bruto Semanal</span>
+                  <span className="text-lg font-black text-emerald-700">+{formatBs(weekData.grandTotalConsolidadaBs)}</span>
+                  <span className="text-[10px] text-emerald-800 block font-bold font-mono">≈ {formatUsd(weekData.grandTotalConsolidadaUsd)}</span>
                 </div>
               </div>
             )}
@@ -389,21 +393,28 @@ export default function ReportPdfModal({
                       <th className="py-2 px-2 text-center">Recargas</th>
                       <th className="py-2 px-2 text-right">Payall</th>
                       <th className="py-2 px-2 text-right">PagoDirecto</th>
-                      <th className="py-2 px-2 text-right">Ganancia Recargas (Bs)</th>
+                      <th className="py-2 px-2 text-right text-orange-700">Alquiler POS/Bio</th>
+                      <th className="py-2 px-2 text-right">Ganancia Total (Bs)</th>
                       <th className="py-2 px-2 text-right">Equiv. $ BCV (Neta Real)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {weekData.rows.map((r, idx) => {
-                      const usd = r.gananciaNetaUsd ?? (tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0);
+                      const usd = r.gananciaNetaUsd ?? (tasaBcv > 0 ? (r.totalConsolidadaBs || r.totalGanancia) / tasaBcv : 0);
+                      const totalDia = r.totalConsolidadaBs ?? (r.totalGanancia + (r.totalAlquilerGananciaBs || 0));
                       return (
                         <tr key={r.fechaIso} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                           <td className="py-2 px-2 font-bold font-sans">{r.nombre}</td>
                           <td className="py-2 px-2">{r.fechaIso}</td>
                           <td className="py-2 px-2 text-center font-bold">{r.count}</td>
-                          <td className="py-2 px-2 text-right">{formatBs(r.totalPayall)}</td>
-                          <td className="py-2 px-2 text-right">{formatBs(r.totalPagoDirecto)}</td>
-                          <td className="py-2 px-2 text-right font-bold text-emerald-700">+{formatBs(r.totalGanancia)}</td>
+                          <td className="py-2 px-2 text-right">{r.totalPayall > 0 ? formatBs(r.totalPayall) : '-'}</td>
+                          <td className="py-2 px-2 text-right">{r.totalPagoDirecto > 0 ? formatBs(r.totalPagoDirecto) : '-'}</td>
+                          <td className="py-2 px-2 text-right font-bold text-orange-700">
+                            {r.totalAlquilerGananciaBs > 0 ? `+${formatBs(r.totalAlquilerGananciaBs)}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-bold text-emerald-800">
+                            {r.hasActivity ? `+${formatBs(totalDia)}` : '-'}
+                          </td>
                           <td className="py-2 px-2 text-right font-bold text-emerald-800">
                             {r.hasActivity ? formatUsd(usd) : '-'}
                           </td>
@@ -415,11 +426,12 @@ export default function ReportPdfModal({
                     <tr>
                       <td colSpan={2} className="py-2 px-2 uppercase font-sans text-xs">TOTAL SEMANAL</td>
                       <td className="py-2 px-2 text-center font-black">{weekData.grandTotalRecargas}</td>
-                      <td className="py-2 px-2 text-right">{formatBs(weekData.grandTotalPayall)}</td>
-                      <td className="py-2 px-2 text-right">{formatBs(weekData.grandTotalPagoDirecto)}</td>
-                      <td className="py-2 px-2 text-right text-emerald-800 font-black">+{formatBs(weekData.grandTotalBs)}</td>
+                      <td className="py-2 px-2 text-right text-emerald-800 font-black">+{formatBs(weekData.grandTotalPayall)}</td>
+                      <td className="py-2 px-2 text-right text-blue-800 font-black">+{formatBs(weekData.grandTotalPagoDirecto)}</td>
+                      <td className="py-2 px-2 text-right text-orange-700 font-black">+{formatBs(weekData.grandTotalAlquilerGanancia)}</td>
+                      <td className="py-2 px-2 text-right text-emerald-900 font-black">+{formatBs(weekData.grandTotalConsolidadaBs)}</td>
                       <td className="py-2 px-2 text-right text-emerald-900 font-black">
-                        {formatUsd(weekData.grandTotalNetaUsd ?? weekData.grandTotalUsd)}
+                        {formatUsd(weekData.grandTotalNetaUsd ?? weekData.grandTotalConsolidadaUsd)}
                       </td>
                     </tr>
                   </tfoot>

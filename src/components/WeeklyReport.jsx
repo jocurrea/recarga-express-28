@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { formatBs, formatUsd, calculateDailySummary } from '@/lib/calculator';
 import { exportWeeklyReport } from '@/lib/excelExport';
 import { getAbonosForTransaction } from '@/lib/storage';
-import { ChevronLeft, ChevronRight, Sparkles, Calendar, DollarSign, Download, FileText, Clock, CheckCircle2, User, X, Wallet, TrendingUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Calendar, DollarSign, Download, FileText, Clock, CheckCircle2, User, X, Wallet, TrendingUp, CreditCard, Banknote, Fingerprint } from 'lucide-react';
 import ReportPdfModal from './ReportPdfModal';
 
 export default function WeeklyReport({
@@ -70,18 +70,22 @@ export default function WeeklyReport({
     };
   }, [weekOffset, mounted]);
 
-  // Agrupar transacciones por día de la semana con soporte para tasas diarias y Ganancia Neta Real
+  // Agrupar transacciones por día de la semana con soporte para tasas diarias, Ganancia Neta Real y Alquileres de Punto/BioPago
   const weekData = useMemo(() => {
-    let grandTotalBs = 0;
+    let grandTotalRecargasBs = 0;
     let grandTotalPayall = 0;
     let grandTotalPagoDirecto = 0;
-    let grandTotalRecargas = 0;
-    let grandTotalUsd = 0;
-    let grandTotalNetaBs = 0;
-    let grandTotalNetaUsd = 0;
+    let grandTotalRecargasCount = 0;
     let grandTotalAlquilerGanancia = 0;
-    let grandTotalDeduccionesBs = 0;
+    let grandTotalAlquilerPuntoGanancia = 0;
+    let grandTotalAlquilerBiopagoGanancia = 0;
+    let grandTotalAlquilerTickets = 0;
     let grandTotalConsolidadaBs = 0;
+    let grandTotalDeduccionesBs = 0;
+    let grandTotalNetaBs = 0;
+    let grandTotalConsolidadaUsd = 0;
+    let grandTotalRecargasUsd = 0;
+    let grandTotalNetaUsd = 0;
 
     const rows = daysOfWeek.map((day) => {
       const txs = allTransactions.filter((t) => t.fecha === day.fechaIso);
@@ -96,58 +100,78 @@ export default function WeeklyReport({
 
       const hasActivity = txs.length > 0 || alqs.length > 0;
 
-      const dayTotalBs = daySummary.gananciaBruta;
+      const dayRecargasBs = daySummary.gananciaBruta;
       const dayPayall = daySummary.gananciaPayall;
       const dayPagoDirecto = daySummary.gananciaPagoDirecto;
       const dayAlquilerGananciaBs = daySummary.totalAlquilerGananciaBs;
+      const dayAlquilerPuntoGananciaBs = daySummary.totalAlquilerPuntoGananciaBs;
+      const dayAlquilerBiopagoGananciaBs = daySummary.totalAlquilerBiopagoGananciaBs;
+      const dayConsolidadaBs = daySummary.gananciaBrutaConsolidada || (dayRecargasBs + dayAlquilerGananciaBs);
       const dayDeduccionesBs = daySummary.totalDeduccionesBs;
       const dayNetaBs = daySummary.gananciaNetaBs;
       const dayNetaUsd = daySummary.gananciaNetaUsd;
-      const dayBrutaUsd = dayRate > 0 ? (daySummary.gananciaBrutaConsolidada || dayTotalBs) / dayRate : 0;
-      const dayRecargasUsd = dayRate > 0 ? dayTotalBs / dayRate : 0;
+      const dayConsolidadaUsd = dayRate > 0 ? dayConsolidadaBs / dayRate : 0;
+      const dayRecargasUsd = dayRate > 0 ? dayRecargasBs / dayRate : 0;
 
-      grandTotalBs += dayTotalBs;
+      grandTotalRecargasBs += dayRecargasBs;
       grandTotalPayall += dayPayall;
       grandTotalPagoDirecto += dayPagoDirecto;
-      grandTotalRecargas += txs.length;
-      grandTotalUsd += dayRecargasUsd;
-      grandTotalNetaBs += dayNetaBs;
-      grandTotalNetaUsd += dayNetaUsd;
+      grandTotalRecargasCount += txs.length;
       grandTotalAlquilerGanancia += dayAlquilerGananciaBs;
+      grandTotalAlquilerPuntoGanancia += dayAlquilerPuntoGananciaBs;
+      grandTotalAlquilerBiopagoGanancia += dayAlquilerBiopagoGananciaBs;
+      grandTotalAlquilerTickets += daySummary.countAlquilerTickets || 0;
+      grandTotalConsolidadaBs += dayConsolidadaBs;
       grandTotalDeduccionesBs += dayDeduccionesBs;
-      grandTotalConsolidadaBs += (daySummary.gananciaBrutaConsolidada || dayTotalBs);
+      grandTotalNetaBs += dayNetaBs;
+      grandTotalConsolidadaUsd += dayConsolidadaUsd;
+      grandTotalRecargasUsd += dayRecargasUsd;
+      grandTotalNetaUsd += dayNetaUsd;
 
       return {
         ...day,
         hasActivity,
-        totalGanancia: dayTotalBs,
+        totalGanancia: dayRecargasBs, // Ganancia recargas (compatibilidad)
+        gananciaRecargasBs: dayRecargasBs,
         totalPayall: dayPayall,
         totalPagoDirecto: dayPagoDirecto,
         totalAlquilerGananciaBs: dayAlquilerGananciaBs,
+        totalAlquilerPuntoGananciaBs: dayAlquilerPuntoGananciaBs,
+        totalAlquilerBiopagoGananciaBs: dayAlquilerBiopagoGananciaBs,
+        countAlquilerTickets: daySummary.countAlquilerTickets || 0,
+        totalConsolidadaBs: dayConsolidadaBs, // Ganancia Recargas + Alquileres
+        gananciaBrutaConsolidada: dayConsolidadaBs,
         totalDeduccionesBs: dayDeduccionesBs,
         gananciaNetaBs: dayNetaBs,
         gananciaNetaUsd: dayNetaUsd,
         count: txs.length,
         dayRate,
         dayUsd: dayNetaUsd, // Por solicitud del usuario: la columna refleja la Ganancia Neta Real diaria
-        dayBrutaUsd,
+        dayBrutaUsd: dayConsolidadaUsd,
         dayRecargasUsd,
+        dayConsolidadaUsd,
         summary: daySummary
       };
     });
 
     return {
       rows,
-      grandTotalBs,
+      grandTotalBs: grandTotalRecargasBs, // Conservado por compatibilidad
+      grandTotalRecargasBs,
       grandTotalPayall,
       grandTotalPagoDirecto,
-      grandTotalUsd,
-      grandTotalRecargas,
+      grandTotalUsd: grandTotalConsolidadaUsd, // Bruta consolidada en USD
+      grandTotalRecargasUsd,
+      grandTotalRecargas: grandTotalRecargasCount,
       grandTotalNetaBs,
       grandTotalNetaUsd,
       grandTotalAlquilerGanancia,
+      grandTotalAlquilerPuntoGanancia,
+      grandTotalAlquilerBiopagoGanancia,
+      grandTotalAlquilerTickets,
       grandTotalDeduccionesBs,
-      grandTotalConsolidadaBs
+      grandTotalConsolidadaBs,
+      grandTotalConsolidadaUsd
     };
   }, [daysOfWeek, allTransactions, allAlquiler, tasaBcv, dailyRates, config]);
 
@@ -271,6 +295,101 @@ export default function WeeklyReport({
               <Download className="w-3.5 h-3.5" />
               <span>Excel</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* TARJETAS RESUMEN DE LA SEMANA (RECARGAS + ALQUILER POS & BIOPAGO) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Tarjeta 1: Total Bruto Consolidado */}
+        <div className={`p-4 rounded-2xl border transition-colors shadow-xs ${
+          isLight
+            ? 'bg-amber-50/70 border-amber-300/80 text-amber-950'
+            : 'bg-amber-950/25 border-amber-800/50 text-amber-200'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-amber-900' : 'text-amber-300'}`}>
+              Ganancia Bruta Total
+            </span>
+            <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className={`text-2xl font-black font-mono ${isLight ? 'text-amber-950' : 'text-amber-100'}`}>
+            +{formatBs(weekData.grandTotalConsolidadaBs)}
+          </div>
+          <div className="flex items-center justify-between mt-1 text-xs">
+            <span className={`font-mono font-bold ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>
+              ≈ {formatUsd(weekData.grandTotalConsolidadaUsd)}
+            </span>
+            <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              Recargas + Alquileres
+            </span>
+          </div>
+        </div>
+
+        {/* Tarjeta 2: Ganancia por Recargas */}
+        <div className={`p-4 rounded-2xl border transition-colors shadow-xs ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-800'
+            : 'bg-[#0f172a] border-slate-800 text-slate-100'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              Recargas ({weekData.grandTotalRecargas})
+            </span>
+            <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className={`text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400`}>
+            +{formatBs(weekData.grandTotalRecargasBs)}
+          </div>
+          <div className="mt-1 text-[11px] font-mono flex items-center justify-between text-slate-500">
+            <span className="text-emerald-700 dark:text-emerald-400">Payall: {formatBs(weekData.grandTotalPayall)}</span>
+            <span className="text-blue-700 dark:text-blue-400">P.Dir: {formatBs(weekData.grandTotalPagoDirecto)}</span>
+          </div>
+        </div>
+
+        {/* Tarjeta 3: Ganancia Alquiler POS & BioPago */}
+        <div className={`p-4 rounded-2xl border transition-colors shadow-xs ${
+          isLight
+            ? 'bg-orange-50/70 border-orange-200 text-orange-950'
+            : 'bg-orange-950/20 border-orange-800/40 text-orange-200'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-orange-900' : 'text-orange-300'}`}>
+              Alquiler POS & BioPago (10%)
+            </span>
+            <CreditCard className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+          </div>
+          <div className={`text-2xl font-black font-mono text-orange-600 dark:text-orange-400`}>
+            +{formatBs(weekData.grandTotalAlquilerGanancia)}
+          </div>
+          <div className="mt-1 text-[11px] font-mono flex items-center justify-between text-orange-800 dark:text-orange-300">
+            <span>Punto: {formatBs(weekData.grandTotalAlquilerPuntoGanancia)}</span>
+            <span>BioPago: {formatBs(weekData.grandTotalAlquilerBiopagoGanancia)}</span>
+          </div>
+        </div>
+
+        {/* Tarjeta 4: Ganancia Neta Real */}
+        <div className={`p-4 rounded-2xl border transition-colors shadow-xs ${
+          isLight
+            ? 'bg-emerald-50/80 border-emerald-300/80 text-emerald-950'
+            : 'bg-emerald-950/25 border-emerald-800/50 text-emerald-200'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-emerald-900' : 'text-emerald-300'}`}>
+              Ganancia Neta Real
+            </span>
+            <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className={`text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400`}>
+            +{formatBs(weekData.grandTotalNetaBs)}
+          </div>
+          <div className="flex items-center justify-between mt-1 text-xs">
+            <span className={`font-mono font-bold ${isLight ? 'text-emerald-800' : 'text-emerald-300'}`}>
+              ≈ {formatUsd(weekData.grandTotalNetaUsd)}
+            </span>
+            <span className={`text-[10px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              En bolsillo (Limpio)
+            </span>
           </div>
         </div>
       </div>
@@ -517,11 +636,12 @@ export default function WeeklyReport({
                 : 'bg-slate-900 text-slate-300 border-slate-800'
             }`}>
               <tr>
-                <th className="py-3 px-5">Ganancia Diaria</th>
-                <th className="py-3 px-5 text-right">Bolívares (Bs.)</th>
-                <th className="py-3 px-5 text-right">Payall (Bs.)</th>
-                <th className="py-3 px-5 text-right">PagoDirecto (Bs.)</th>
-                <th className="py-3 px-5 text-right">
+                <th className="py-3 px-4 sm:px-5">Ganancia Diaria</th>
+                <th className="py-3 px-4 text-right">Ganancia Total (Bs.)</th>
+                <th className="py-3 px-4 text-right text-emerald-600 dark:text-emerald-400">Payall (Bs.)</th>
+                <th className="py-3 px-4 text-right text-blue-600 dark:text-blue-400">PagoDirecto (Bs.)</th>
+                <th className="py-3 px-4 text-right text-orange-600 dark:text-orange-400">Alquiler POS/BioPago</th>
+                <th className="py-3 px-4 sm:px-5 text-right">
                   {viewMode === 'neta' ? (
                     <span className="text-emerald-600 dark:text-emerald-400">
                       Equiv. $ BCV (Neta Real)
@@ -537,7 +657,7 @@ export default function WeeklyReport({
             }`}>
               {weekData.rows.map((row) => {
                 const isNeta = viewMode === 'neta';
-                const displayUsd = isNeta ? row.gananciaNetaUsd : row.dayBrutaUsd;
+                const displayUsd = isNeta ? row.gananciaNetaUsd : row.dayConsolidadaUsd;
                 return (
                   <tr
                     key={row.fechaIso}
@@ -545,7 +665,7 @@ export default function WeeklyReport({
                       isLight ? 'hover:bg-slate-50' : 'hover:bg-[#0f1c3d]'
                     }`}
                   >
-                    <td className={`py-3 px-6 font-sans font-bold ${
+                    <td className={`py-3 px-4 sm:px-5 font-sans font-bold ${
                       isLight ? 'text-slate-800' : 'text-slate-200'
                     }`}>
                       <div className="flex items-center gap-2">
@@ -560,29 +680,58 @@ export default function WeeklyReport({
                         )}
                       </div>
                     </td>
-                    <td className={`py-3 px-6 text-right font-black ${
+
+                    {/* Ganancia Total (Recargas + Alquileres de ese día) */}
+                    <td className={`py-3 px-4 text-right font-black ${
                       isLight ? 'text-slate-900' : 'text-white'
                     }`}>
                       {row.hasActivity ? (
                         <div>
-                          <span>{formatBs(row.totalGanancia)}</span>
-                          {row.totalAlquilerGananciaBs > 0 && (
-                            <span className="block text-[10px] font-normal text-orange-600 dark:text-orange-400 font-mono">
-                              +{formatBs(row.totalAlquilerGananciaBs)} alq.
+                          <span className="text-base">+{formatBs(row.totalConsolidadaBs)}</span>
+                          <div className="text-[10px] font-normal font-mono opacity-80 mt-0.5 space-y-0.5">
+                            <span className="block text-slate-500">
+                              Recargas: {formatBs(row.gananciaRecargasBs)}
                             </span>
-                          )}
+                            {row.totalAlquilerGananciaBs > 0 && (
+                              <span className="block text-orange-600 dark:text-orange-400 font-semibold">
+                                +Alquiler: {formatBs(row.totalAlquilerGananciaBs)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ) : (
-                        '-'
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="py-3 px-6 text-right text-emerald-600 dark:text-emerald-400 font-bold">
-                      {row.totalPayall > 0 ? formatBs(row.totalPayall) : '-'}
+
+                    {/* Payall */}
+                    <td className="py-3 px-4 text-right text-emerald-600 dark:text-emerald-400 font-bold">
+                      {row.totalPayall > 0 ? `+${formatBs(row.totalPayall)}` : '-'}
                     </td>
-                    <td className="py-3 px-6 text-right text-blue-600 dark:text-blue-400 font-bold">
-                      {row.totalPagoDirecto > 0 ? formatBs(row.totalPagoDirecto) : '-'}
+
+                    {/* PagoDirecto */}
+                    <td className="py-3 px-4 text-right text-blue-600 dark:text-blue-400 font-bold">
+                      {row.totalPagoDirecto > 0 ? `+${formatBs(row.totalPagoDirecto)}` : '-'}
                     </td>
-                    <td className="py-3 px-6 text-right">
+
+                    {/* Alquiler POS y BioPago (10%) */}
+                    <td className="py-3 px-4 text-right font-bold text-orange-600 dark:text-orange-400">
+                      {row.totalAlquilerGananciaBs > 0 ? (
+                        <div>
+                          <span>+{formatBs(row.totalAlquilerGananciaBs)}</span>
+                          <span className="block text-[10px] font-normal text-slate-500 font-mono">
+                            {row.totalAlquilerPuntoGananciaBs > 0 && row.totalAlquilerBiopagoGananciaBs > 0
+                              ? `POS: ${formatBs(row.totalAlquilerPuntoGananciaBs)} • Bio: ${formatBs(row.totalAlquilerBiopagoGananciaBs)}`
+                              : row.totalAlquilerPuntoGananciaBs > 0 ? 'Punto POS' : 'BioPago'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-normal">-</span>
+                      )}
+                    </td>
+
+                    {/* Equivalente en Dólares ($ BCV) */}
+                    <td className="py-3 px-4 sm:px-5 text-right">
                       {row.hasActivity ? (
                         <div>
                           <span className={`font-mono text-sm font-black block ${
@@ -592,13 +741,11 @@ export default function WeeklyReport({
                           }`}>
                             {formatUsd(displayUsd)}
                           </span>
-                          {isNeta && (
-                            <span className={`text-[10px] font-mono block ${
-                              isLight ? 'text-slate-500' : 'text-slate-400'
-                            }`}>
-                              Neto: {formatBs(row.gananciaNetaBs)}
-                            </span>
-                          )}
+                          <span className={`text-[10px] font-mono block ${
+                            isLight ? 'text-slate-500' : 'text-slate-400'
+                          }`}>
+                            {isNeta ? `Neto: ${formatBs(row.gananciaNetaBs)}` : `Bruto: ${formatBs(row.totalConsolidadaBs)}`}
+                          </span>
                         </div>
                       ) : (
                         <span className={isLight ? 'text-slate-400' : 'text-slate-600'}>-</span>
@@ -609,7 +756,7 @@ export default function WeeklyReport({
               })}
             </tbody>
 
-            {/* SECCIÓN DE TOTALES EXACTA AL EXCEL */}
+            {/* SECCIÓN DE TOTALES EXACTA AL EXCEL Y CONSOLIDADA */}
             <tfoot className={`font-mono border-t-2 ${
               isLight
                 ? 'bg-slate-50 border-slate-200'
@@ -617,49 +764,52 @@ export default function WeeklyReport({
             }`}>
               {/* FILA 1: TOTAL GANANCIA BRUTA SEMANAL */}
               <tr className={isLight ? 'bg-amber-100/70 border-b border-amber-300' : 'bg-amber-500/10 border-b border-amber-500/20'}>
-                <td className={`py-3.5 px-6 font-sans font-black uppercase text-xs ${
+                <td className={`py-3.5 px-4 sm:px-5 font-sans font-black uppercase text-xs ${
                   isLight ? 'text-amber-950' : 'text-amber-300'
                 }`}>
                   TOTAL GANANCIA BRUTA SEMANAL
                 </td>
-                <td className={`py-3.5 px-6 text-right font-black text-xl ${
+                <td className={`py-3.5 px-4 text-right font-black text-xl ${
                   isLight ? 'text-amber-950' : 'text-amber-300'
                 }`}>
-                  {formatBs(weekData.grandTotalBs)}
+                  +{formatBs(weekData.grandTotalConsolidadaBs)}
                 </td>
-                <td className="py-3.5 px-6 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatBs(weekData.grandTotalPayall)}
+                <td className="py-3.5 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                  +{formatBs(weekData.grandTotalPayall)}
                 </td>
-                <td className="py-3.5 px-6 text-right font-bold text-blue-600 dark:text-blue-400">
-                  {formatBs(weekData.grandTotalPagoDirecto)}
+                <td className="py-3.5 px-4 text-right font-bold text-blue-600 dark:text-blue-400">
+                  +{formatBs(weekData.grandTotalPagoDirecto)}
                 </td>
-                <td className={`py-3.5 px-6 text-right font-bold ${
+                <td className="py-3.5 px-4 text-right font-black text-orange-600 dark:text-orange-400">
+                  +{formatBs(weekData.grandTotalAlquilerGanancia)}
+                </td>
+                <td className={`py-3.5 px-4 sm:px-5 text-right font-bold ${
                   isLight ? 'text-amber-950 font-black' : 'text-amber-300'
                 }`}>
-                  {formatUsd(weekData.grandTotalUsd)}
+                  {formatUsd(weekData.grandTotalConsolidadaUsd)}
                 </td>
               </tr>
 
               {/* FILA 2: TOTAL GANANCIA NETA REAL (EN BOLSILLO) */}
               <tr className={isLight ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-emerald-950/30 border-b border-emerald-800/40'}>
-                <td className={`py-3 px-6 font-sans font-black uppercase text-xs ${
+                <td className={`py-3 px-4 sm:px-5 font-sans font-black uppercase text-xs ${
                   isLight ? 'text-emerald-900' : 'text-emerald-300'
                 }`}>
                   TOTAL GANANCIA NETA REAL (EN BOLSILLO)
                 </td>
-                <td className={`py-3 px-6 text-right font-black text-xl ${
+                <td className={`py-3 px-4 text-right font-black text-xl ${
                   isLight ? 'text-emerald-700' : 'text-emerald-400'
                 }`}>
                   +{formatBs(weekData.grandTotalNetaBs)}
                 </td>
-                <td colSpan={2} className={`py-3 px-6 text-center text-xs font-sans ${
+                <td colSpan={3} className={`py-3 px-4 text-center text-xs font-sans ${
                   isLight ? 'text-slate-600' : 'text-slate-400'
                 }`}>
                   {weekData.grandTotalDeduccionesBs > 0
-                    ? `Deducciones de la semana: -${formatBs(weekData.grandTotalDeduccionesBs)}`
-                    : 'Sin deducciones aplicadas'}
+                    ? `Deducciones de la semana: -${formatBs(weekData.grandTotalDeduccionesBs)} (Comisiones banco y alquiler POS)`
+                    : 'Sin deducciones bancarias aplicadas'}
                 </td>
-                <td className={`py-3 px-6 text-right font-black text-xl ${
+                <td className={`py-3 px-4 sm:px-5 text-right font-black text-xl ${
                   isLight ? 'text-emerald-700' : 'text-emerald-400'
                 }`}>
                   +{formatUsd(weekData.grandTotalNetaUsd)}
@@ -668,14 +818,14 @@ export default function WeeklyReport({
 
               {/* FILA 3: TOTAL DESTACADO EN DÓLARES */}
               <tr className="bg-orange-500/10 border-b border-orange-500/20">
-                <td className="py-3 px-6 font-sans font-bold text-orange-600 dark:text-orange-300 uppercase text-xs">
+                <td className="py-3 px-4 sm:px-5 font-sans font-bold text-orange-600 dark:text-orange-300 uppercase text-xs">
                   {viewMode === 'neta' ? 'TOTAL NETA REAL SEMANAL ($ BCV)' : 'TOTAL BRUTA SEMANAL ($ BCV)'}
                 </td>
                 <td
-                  colSpan={4}
-                  className="py-3 px-6 text-right font-black text-2xl text-orange-600 dark:text-orange-300"
+                  colSpan={5}
+                  className="py-3 px-4 sm:px-5 text-right font-black text-2xl text-orange-600 dark:text-orange-300"
                 >
-                  {formatUsd(viewMode === 'neta' ? weekData.grandTotalNetaUsd : weekData.grandTotalUsd)}
+                  {formatUsd(viewMode === 'neta' ? weekData.grandTotalNetaUsd : weekData.grandTotalConsolidadaUsd)}
                 </td>
               </tr>
             </tfoot>

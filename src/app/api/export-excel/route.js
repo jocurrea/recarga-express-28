@@ -23,21 +23,24 @@ export async function POST(request) {
       const headers = [
         'Día',
         'Fecha',
-        'Ganancia Diaria (Bs)',
+        'Ganancia Total (Bs)',
         'Payall (Bs)',
         'PagoDirecto (Bs)',
+        'Alquiler POS/BioPago (Bs)',
         'Equivalente $ BCV',
         'Cantidad Recargas'
       ];
 
       const dataRows = (weekData.rows || []).map((r) => {
-        const usd = tasaBcv > 0 ? r.totalGanancia / tasaBcv : 0;
+        const totalConsolidada = Number(r.totalConsolidadaBs ?? (Number(r.totalGanancia || 0) + Number(r.totalAlquilerGananciaBs || 0)));
+        const usd = tasaBcv > 0 ? (r.gananciaNetaUsd ?? totalConsolidada / tasaBcv) : 0;
         return [
           r.nombre,
           r.fechaIso,
-          Number(r.totalGanancia || 0),
+          totalConsolidada,
           Number(r.totalPayall || 0),
           Number(r.totalPagoDirecto || 0),
+          Number(r.totalAlquilerGananciaBs || 0),
           Number(usd.toFixed(2)),
           Number(r.count || 0)
         ];
@@ -46,10 +49,11 @@ export async function POST(request) {
       const totalRow = [
         'TOTAL SEMANAL',
         '',
-        Number(weekData.grandTotalBs || 0),
+        Number(weekData.grandTotalConsolidadaBs || weekData.grandTotalBs || 0),
         Number(weekData.grandTotalPayall || 0),
         Number(weekData.grandTotalPagoDirecto || 0),
-        Number((weekData.grandTotalUsd || 0).toFixed(2)),
+        Number(weekData.grandTotalAlquilerGanancia || 0),
+        Number((weekData.grandTotalConsolidadaUsd || weekData.grandTotalNetaUsd || weekData.grandTotalUsd || 0).toFixed(2)),
         Number(weekData.grandTotalRecargas || 0)
       ];
 
@@ -58,8 +62,9 @@ export async function POST(request) {
         { wch: 14 },
         { wch: 14 },
         { wch: 22 },
-        { wch: 18 },
-        { wch: 18 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 24 },
         { wch: 18 },
         { wch: 18 }
       ];

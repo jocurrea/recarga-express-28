@@ -185,6 +185,12 @@ export function calculateDailySummary(transacciones = [], config = {}, tasaBcv =
     }
   }
 
+  // Consolidar totales de alquiler a terceros (Punto POS + BioPago)
+  summary.totalAlquilerPasado = summary.totalAlquilerPuntoPasado + summary.totalAlquilerBiopagoPasado;
+  summary.totalAlquilerGananciaBs = summary.totalAlquilerPuntoGananciaBs + summary.totalAlquilerBiopagoGananciaBs;
+  summary.totalAlquilerPagarBs = summary.totalAlquilerPuntoPagarBs + summary.totalAlquilerBiopagoPagarBs;
+  summary.countAlquilerTickets = summary.countAlquilerPuntoTickets + summary.countAlquilerBiopagoTickets;
+
   // Cierre de Lote General del Punto (Recargas propias por punto + Pasado por comerciantes en Punto POS)
   summary.totalPuntoLoteGeneral = summary.totalPunto + summary.totalAlquilerPuntoPasado;
 

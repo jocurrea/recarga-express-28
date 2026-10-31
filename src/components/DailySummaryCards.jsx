@@ -727,9 +727,16 @@ export default function DailySummaryCards({ summary, config, onTogglePosRent, th
                 ≈ {formatUsd(gananciaNetaUsd || 0)}
               </span>
             </div>
-            <span className={`text-[10px] block mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Bruta ({formatBs(totalAlquilerGananciaBs > 0 ? (gananciaBrutaConsolidada || gananciaBruta + totalAlquilerGananciaBs) : gananciaBruta)}) - Deducciones ({formatBs(totalDeduccionesBs)})
-            </span>
+            <div className={`text-[10px] mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              <div>
+                Bruta ({formatBs(totalAlquilerGananciaBs > 0 ? (gananciaBrutaConsolidada || gananciaBruta + totalAlquilerGananciaBs) : gananciaBruta)}) - Deducciones ({formatBs(totalDeduccionesBs)})
+              </div>
+              {totalAlquilerGananciaBs > 0 && (
+                <div className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  Recargas: +{formatBs(gananciaBruta)} | Puntos: +{formatBs(totalAlquilerGananciaBs)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
