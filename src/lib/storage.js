@@ -446,8 +446,9 @@ export function addAlquilerPunto(data) {
   const comisionBs = montoTotal * (comisionPct / 100);
   const montoPagar = montoTotal - comisionBs;
 
+  const idPrefix = tipo === 'biopago' ? 'alq_biopago_' : (tipo === 'mixto' ? 'alq_mixto_' : 'alq_punto_');
   const newItem = {
-    id: 'alq-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+    id: idPrefix + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     tipo: tipo, // 'punto' | 'biopago' | 'mixto'
     fecha: data.fecha || getTodayDateStr(),
     hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
@@ -470,7 +471,7 @@ export function addAlquilerPunto(data) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
-  syncAlquilerToSupabase(newItem);
+  syncAlquilerToSupabase(newItem, updated);
   return newItem;
 }
 
@@ -480,7 +481,7 @@ export function deleteAlquilerPunto(id) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
-  deleteAlquilerFromSupabase(id);
+  deleteAlquilerFromSupabase(id, updated);
   return updated;
 }
 
@@ -570,7 +571,7 @@ export function updateAlquilerPunto(id, updatedFields) {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
   if (updatedRecord) {
-    syncAlquilerToSupabase(updatedRecord);
+    syncAlquilerToSupabase(updatedRecord, updated);
   }
   return updated;
 }
@@ -589,7 +590,7 @@ export function toggleAlquilerTransferido(id) {
     localStorage.setItem(KEY_ALQUILER, JSON.stringify(updated));
   }
   if (target) {
-    syncAlquilerToSupabase(target);
+    syncAlquilerToSupabase(target, updated);
   }
   return updated;
 }

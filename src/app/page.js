@@ -114,9 +114,28 @@ export default function Home() {
 
       fetchAlquilerFromSupabase().then((remoteAlq) => {
         if (remoteAlq && remoteAlq.length > 0) {
-          setAllAlquiler(remoteAlq);
+          const localAlq = getAllAlquilerPunto();
+          // Fusionar con seguridad preservando si en local era BioPago o Mixto
+          const merged = remoteAlq.map((rem) => {
+            const loc = localAlq.find((l) => l.id === rem.id);
+            if (loc && loc.tipo && loc.tipo !== 'punto' && rem.tipo === 'punto') {
+              return {
+                ...rem,
+                tipo: loc.tipo,
+                montoBiopago: loc.montoBiopago ?? rem.montoBiopago,
+                ticketsBiopago: loc.ticketsBiopago ?? rem.ticketsBiopago,
+                montoPunto: loc.montoPunto ?? rem.montoPunto,
+                ticketsPunto: loc.ticketsPunto ?? rem.ticketsPunto
+              };
+            }
+            return rem;
+          });
+          const remoteIds = new Set(remoteAlq.map((r) => r.id));
+          const localOnly = localAlq.filter((l) => !remoteIds.has(l.id));
+          const finalAlq = [...localOnly, ...merged];
+          setAllAlquiler(finalAlq);
           if (typeof window !== 'undefined') {
-            localStorage.setItem('recargas_alquiler_punto_v1', JSON.stringify(remoteAlq));
+            localStorage.setItem('recargas_alquiler_punto_v1', JSON.stringify(finalAlq));
           }
         }
       });

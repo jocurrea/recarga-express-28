@@ -110,24 +110,51 @@ export async function deleteTransactionFromSupabase(id) {
 }
 
 // ==========================================
-// ALQUILER DE PUNTO DE VENTA (10%)
+// ALQUILER DE PUNTO DE VENTA Y BIOPAGO (10%)
 // ==========================================
 export function mapRowToAlquiler(row) {
+  let tipo = row.tipo;
+  if (!tipo) {
+    if (row.id?.includes('_biopago_') || row.id?.includes('-biopago-')) tipo = 'biopago';
+    else if (row.id?.includes('_mixto_') || row.id?.includes('-mixto-')) tipo = 'mixto';
+    else tipo = 'punto';
+  }
+
+  const montoTotal = Number(row.monto_total || 0);
+  const tickets = Number(row.tickets || 1);
+
+  let montoPunto = Number(row.monto_punto || 0);
+  let montoBiopago = Number(row.monto_biopago || 0);
+  let ticketsPunto = Number(row.tickets_punto || 0);
+  let ticketsBiopago = Number(row.tickets_biopago || 0);
+
+  if (tipo === 'biopago') {
+    montoBiopago = montoBiopago || montoTotal;
+    ticketsBiopago = ticketsBiopago || tickets;
+    montoPunto = 0;
+    ticketsPunto = 0;
+  } else if (tipo === 'punto') {
+    montoPunto = montoPunto || montoTotal;
+    ticketsPunto = ticketsPunto || tickets;
+    montoBiopago = 0;
+    ticketsBiopago = 0;
+  }
+
   return {
     id: row.id,
-    tipo: row.tipo || 'punto',
+    tipo: tipo,
     nombre: row.nombre,
     fecha: row.fecha,
     hora: row.hora || '',
-    montoTotal: Number(row.monto_total || 0),
-    montoPunto: Number(row.monto_punto || 0),
-    montoBiopago: Number(row.monto_biopago || 0),
+    montoTotal: montoTotal,
+    montoPunto: montoPunto,
+    montoBiopago: montoBiopago,
     comisionPorcentaje: Number(row.comision_porcentaje ?? 10),
     comisionBs: Number(row.comision_bs || 0),
     montoPagar: Number(row.monto_pagar || 0),
-    tickets: Number(row.tickets || 1),
-    ticketsPunto: Number(row.tickets_punto || 0),
-    ticketsBiopago: Number(row.tickets_biopago || 0),
+    tickets: tickets,
+    ticketsPunto: ticketsPunto,
+    ticketsBiopago: ticketsBiopago,
     transferido: Boolean(row.transferido)
   };
 }
@@ -152,6 +179,20 @@ export function mapAlquilerToRow(item) {
 export async function fetchAlquilerFromSupabase() {
   if (!supabase) return null;
   try {
+    // 1. Intentar cargar primero desde 'configuracion' (clave 'alquiler_records')
+    // Esto asegura que registros de BioPago y Mixtos mantengan todos sus campos
+    // independientemente de las columnas que existan en la tabla alquiler_punto
+    const { data: cfgRow } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', 'alquiler_records')
+      .maybeSingle();
+
+    if (cfgRow?.valor && Array.isArray(cfgRow.valor) && cfgRow.valor.length > 0) {
+      return cfgRow.valor;
+    }
+
+    // 2. Si no hay registros en 'configuracion', consultar la tabla 'alquiler_punto'
     const { data, error } = await supabase
       .from('alquiler_punto')
       .select('*')
@@ -168,24 +209,39 @@ export async function fetchAlquilerFromSupabase() {
   }
 }
 
-export async function syncAlquilerToSupabase(item) {
+export async function syncAlquilerToSupabase(item, allItems = null) {
   if (!supabase) return;
   try {
-    const row = mapAlquilerToRow(item);
-    const { error } = await supabase.from('alquiler_punto').upsert([row], { onConflict: 'id' });
-    if (error && error.message && error.message.includes('tipo')) {
-      // Si la columna tipo aún no se ha agregado en Supabase, reintentar sin 'tipo'
-      const { tipo, ...rowWithoutTipo } = row;
-      await supabase.from('alquiler_punto').upsert([rowWithoutTipo], { onConflict: 'id' });
+    // 1. Respaldar lista completa en configuracion con fidelidad total (tipo, biopago, punto)
+    if (allItems && Array.isArray(allItems)) {
+      await supabase.from('configuracion').upsert([
+        { clave: 'alquiler_records', valor: allItems, updated_at: new Date().toISOString() }
+      ], { onConflict: 'clave' });
+    }
+
+    // 2. Sincronizar registro individual en alquiler_punto
+    if (item) {
+      const row = mapAlquilerToRow(item);
+      const { error } = await supabase.from('alquiler_punto').upsert([row], { onConflict: 'id' });
+      if (error && error.message && error.message.includes('tipo')) {
+        // Si la columna tipo aún no existe en Supabase, reintentar sin 'tipo'
+        const { tipo, ...rowWithoutTipo } = row;
+        await supabase.from('alquiler_punto').upsert([rowWithoutTipo], { onConflict: 'id' });
+      }
     }
   } catch (err) {
     console.warn('Error syncing alquiler to Supabase:', err);
   }
 }
 
-export async function deleteAlquilerFromSupabase(id) {
+export async function deleteAlquilerFromSupabase(id, allItems = null) {
   if (!supabase) return;
   try {
+    if (allItems && Array.isArray(allItems)) {
+      await supabase.from('configuracion').upsert([
+        { clave: 'alquiler_records', valor: allItems, updated_at: new Date().toISOString() }
+      ], { onConflict: 'clave' });
+    }
     await supabase.from('alquiler_punto').delete().eq('id', id);
   } catch (err) {
     console.warn('Error deleting alquiler from Supabase:', err);

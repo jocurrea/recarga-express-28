@@ -130,18 +130,22 @@ export default function AlquilerPuntoView({
         setEditError('Ingresa al menos un monto válido en Punto o BioPago');
         return;
       }
-      const numTixP = parseInt(editTicketsPunto, 10) || 0;
-      const numTixB = parseInt(editTicketsBiopago, 10) || 0;
+      let itemTipo = 'mixto';
+      if (numMontoP > 0 && numMontoB <= 0) itemTipo = 'punto';
+      else if (numMontoB > 0 && numMontoP <= 0) itemTipo = 'biopago';
+
+      const tixP = numMontoP > 0 ? (parseInt(editTicketsPunto, 10) || 1) : 0;
+      const tixB = numMontoB > 0 ? (parseInt(editTicketsBiopago, 10) || 1) : 0;
 
       if (updateHandler && editingItem) {
         updateHandler(editingItem.id, {
-          tipo: 'mixto',
+          tipo: itemTipo,
           nombre: editNombre.trim(),
-          ticketsPunto: numTixP,
+          ticketsPunto: tixP,
           montoPunto: numMontoP,
-          ticketsBiopago: numTixB,
+          ticketsBiopago: tixB,
           montoBiopago: numMontoB,
-          tickets: numTixP + numTixB || 1,
+          tickets: tixP + tixB || 1,
           montoTotal: totalM,
           comisionPorcentaje: numComision,
           transferido: editTransferido
@@ -188,8 +192,8 @@ export default function AlquilerPuntoView({
   const aPagarPreview = montoEfectivoForm - gananciaPreview;
 
   // Desglose por tipo de alquiler (incluyendo las porciones de registros mixtos)
-  const recordsPunto = alquilerRecords.filter((r) => r.tipo === 'punto');
-  const recordsBiopago = alquilerRecords.filter((r) => r.tipo === 'biopago');
+  const recordsPunto = alquilerRecords.filter((r) => r.tipo === 'punto' || (r.tipo === 'mixto' && Number(r.montoPunto || 0) > 0));
+  const recordsBiopago = alquilerRecords.filter((r) => r.tipo === 'biopago' || (r.tipo === 'mixto' && Number(r.montoBiopago || 0) > 0));
   const recordsMixto = alquilerRecords.filter((r) => r.tipo === 'mixto');
 
   const puntoPasado = alquilerRecords.reduce((acc, r) => {
@@ -259,16 +263,29 @@ export default function AlquilerPuntoView({
         return;
       }
 
+      // Auto-detección inteligente: si solo llenó BioPago, registrar como BioPago puro.
+      // Si solo llenó Punto, registrar como Punto POS puro.
+      // Si llenó ambos, registrar como Mixto.
+      let itemTipo = 'mixto';
+      if (numMontoP > 0 && numMontoB <= 0) {
+        itemTipo = 'punto';
+      } else if (numMontoB > 0 && numMontoP <= 0) {
+        itemTipo = 'biopago';
+      }
+
+      const tixP = numMontoP > 0 ? (parseInt(ticketsPunto, 10) || 1) : 0;
+      const tixB = numMontoB > 0 ? (parseInt(ticketsBiopago, 10) || 1) : 0;
+
       if (addHandler) {
         addHandler({
-          tipo: 'mixto',
+          tipo: itemTipo,
           fecha: selectedDate,
           nombre: nombre.trim(),
-          ticketsPunto: parseInt(ticketsPunto, 10) || 0,
+          ticketsPunto: tixP,
           montoPunto: numMontoP,
-          ticketsBiopago: parseInt(ticketsBiopago, 10) || 0,
+          ticketsBiopago: tixB,
           montoBiopago: numMontoB,
-          tickets: (parseInt(ticketsPunto, 10) || 0) + (parseInt(ticketsBiopago, 10) || 0) || 1,
+          tickets: tixP + tixB || 1,
           montoTotal: numMontoTotalMixto,
           comisionPorcentaje: comisionPct
         });
@@ -279,17 +296,19 @@ export default function AlquilerPuntoView({
         return;
       }
 
+      const numTickets = parseInt(tickets, 10) || 1;
+
       if (addHandler) {
         addHandler({
-          tipo: tipo,
+          tipo: tipo, // 'biopago' o 'punto'
           fecha: selectedDate,
           nombre: nombre.trim(),
-          tickets: parseInt(tickets, 10) || 1,
+          tickets: numTickets,
           montoTotal: numMontoSimple,
           montoPunto: tipo === 'punto' ? numMontoSimple : 0,
           montoBiopago: tipo === 'biopago' ? numMontoSimple : 0,
-          ticketsPunto: tipo === 'punto' ? (parseInt(tickets, 10) || 1) : 0,
-          ticketsBiopago: tipo === 'biopago' ? (parseInt(tickets, 10) || 1) : 0,
+          ticketsPunto: tipo === 'punto' ? numTickets : 0,
+          ticketsBiopago: tipo === 'biopago' ? numTickets : 0,
           comisionPorcentaje: comisionPct
         });
       }
