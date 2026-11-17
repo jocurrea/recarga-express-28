@@ -127,15 +127,19 @@ export function getAbonosForTransaction(targetTx, allTransactions = []) {
     );
     if (!isAbono) return false;
 
-    // 1. Vinculación directa si el ID del abono contiene el ID de la recarga
+    // 1. Vinculación directa por targetTxId si está presente
+    if (t.targetTxId && targetTx.id && t.targetTxId === targetTx.id) return true;
+
+    // 2. Vinculación directa si el ID del abono contiene el ID de la recarga
+    // (formato estándar: `tx-abono-${targetTx.id}-${timestamp}`)
     if (t.id && targetTx.id && t.id.includes(targetTx.id)) return true;
 
-    // 2. Vinculación por teléfono o nombre del cliente
-    const samePhone = targetTx.telefono && t.telefono && t.telefono.trim() === targetTx.telefono.trim();
-    const sameClient = targetTx.clienteNombre && t.clienteNombre &&
-      t.clienteNombre.trim().toLowerCase() === targetTx.clienteNombre.trim().toLowerCase();
+    // Caso legacy histórico específico de José (29 de octubre)
+    if (targetTx.id === 'tx-1793059827663-n3xk4' && t.id === 'tx-abono-1793324379367-k2i1') return true;
 
-    return Boolean(samePhone || sameClient);
+    // NO vincular por nombre ni teléfono genérico, pues causaba que abonos de recargas
+    // pasadas ya saldadas se le descontaran erróneamente a nuevas recargas fiadas del mismo cliente.
+    return false;
   });
 
   const totalAbonado = abonos.reduce((sum, a) => sum + Number(a.montoCobrado || 0), 0);
@@ -288,6 +292,7 @@ export function abonarTransaccion(id, montoAbono, metodoCobro = 'efectivo', fech
   // 1. Crear el registro del abono que ingresa a la caja de HOY
   const txAbono = {
     id: `tx-abono-${targetTx.id}-${Date.now()}`,
+    targetTxId: targetTx.id,
     fecha: fechaHoy,
     hora: horaHoy,
     operadoraId: targetTx.operadoraId || 'abono',
